@@ -579,7 +579,10 @@ class TrueNASCollector extends BaseCollector {
   async _getSystemPorts() {
     this.logInfo('=== TrueNAS System Ports Collection (Platform-Adaptive) ===');
     
-    if (this.procParser) {
+    const isContainerized = this._detectContainerizedEnvironment();
+    this.logInfo(`Container environment detected: ${isContainerized}`);
+    
+    if (this.procParser && !isContainerized) {
       try {
         this.logInfo('Attempting primary method: Enhanced /proc filesystem parsing');
         const procWorks = await this.procParser.testProcAccess();
@@ -611,13 +614,36 @@ class TrueNASCollector extends BaseCollector {
       } catch (procErr) {
         this.logWarn('Failed to get ports via enhanced /proc parsing:', procErr.message);
       }
+    } else if (isContainerized) {
+      this.logInfo('Containerized environment detected, skipping /proc method and using network commands');
     }
     
     try {
-      this.logInfo('Attempting secondary method: ss command');
-      const { stdout } = await execAsync('ss -tulpn 2>/dev/null');
-      const ports = this._parseSSOutput(stdout);
-      this.logInfo(`ss command successful: ${ports.length} ports found`);
+      this.logInfo('Attempting enhanced ss command with host namespace access');
+      let ssOutput = '';
+      let ssMethod = 'container';
+      
+      if (!isContainerized) {
+        try {
+          const { stdout: nsenterOutput } = await execAsync('nsenter -t 1 -n ss -tulpn 2>/dev/null');
+          if (nsenterOutput && nsenterOutput.trim().length > 100) {
+            ssOutput = nsenterOutput;
+            ssMethod = 'nsenter-host';
+            this.logInfo('Successfully accessed host network namespace via nsenter');
+          }
+        } catch (nsenterErr) {
+          this.logInfo(`nsenter method failed: ${nsenterErr.message}, falling back to container ss`);
+        }
+      }
+      
+      if (!ssOutput) {
+        const { stdout } = await execAsync('ss -tulpn 2>/dev/null');
+        ssOutput = stdout;
+        ssMethod = 'container';
+      }
+      
+      const ports = this._parseSSOutput(ssOutput, ssMethod);
+      this.logInfo(`ss command (${ssMethod}) successful: ${ports.length} ports found`);
       if (ports.length > 0) {
         return ports;
       }
@@ -656,9 +682,10 @@ class TrueNASCollector extends BaseCollector {
   /**
    * Parse ss command output to extract port information
    * @param {string} output ss command output
+   * @param {string} method Execution method context (container, nsenter-host, etc.)
    * @returns {Array} Parsed port entries
    */
-  _parseSSOutput(output) {
+  _parseSSOutput(output, method = 'container') {
     const entries = [];
     const lines = output.split('\n');
 
@@ -708,6 +735,13 @@ class TrueNASCollector extends BaseCollector {
           }
         }
       }
+      
+      if (owner === 'unknown') {
+        owner = this._getIntelligentPortOwner(host_port, protocol.includes('tcp') ? 'tcp' : 'udp', method);
+        this.logInfo(`Port ${host_port}/${protocol.includes('tcp') ? 'tcp' : 'udp'}: No process name from ${method} command, using intelligent mapping → "${owner}"`);
+      } else {
+        this.logInfo(`Port ${host_port}/${protocol.includes('tcp') ? 'tcp' : 'udp'}: Found process name from ${method} command → "${owner}" (PID: ${pid || 'N/A'})`);
+      }
 
       entries.push({
         source: 'system',
@@ -718,7 +752,8 @@ class TrueNASCollector extends BaseCollector {
         target: null,
         container_id: null,
         app_id: null,
-        pids: pid !== null ? [pid] : []
+        pids: pid !== null ? [pid] : [],
+        detection_method: method
       });
     }
 
@@ -783,6 +818,13 @@ class TrueNASCollector extends BaseCollector {
           }
         }
       }
+      
+      if (owner === 'unknown') {
+        owner = this._getIntelligentPortOwner(host_port, protocol.includes('tcp') ? 'tcp' : 'udp', 'netstat');
+        this.logInfo(`Port ${host_port}/${protocol.includes('tcp') ? 'tcp' : 'udp'}: No process name from netstat command, using intelligent mapping → "${owner}"`);
+      } else {
+        this.logInfo(`Port ${host_port}/${protocol.includes('tcp') ? 'tcp' : 'udp'}: Found process name from netstat command → "${owner}" (PID: ${pid || 'N/A'})`);
+      }
 
       entries.push({
         source: 'system',
@@ -793,7 +835,8 @@ class TrueNASCollector extends BaseCollector {
         target: null,
         container_id: null,
         app_id: null,
-        pids: pid !== null ? [pid] : []
+        pids: pid !== null ? [pid] : [],
+        detection_method: 'netstat'
       });
     }
 
@@ -1267,6 +1310,89 @@ class TrueNASCollector extends BaseCollector {
       );
       return results;
     }
+  }
+
+  /**
+   * Detect if running in containerized environment
+   * @returns {boolean} True if containerized
+   * @private
+   */
+  _detectContainerizedEnvironment() {
+    try {
+      const fs = require('fs');
+      
+      const hasDockerEnv = fs.existsSync('/.dockerenv');
+      const hasContainerInit = fs.existsSync('/proc/1/cgroup') && 
+        fs.readFileSync('/proc/1/cgroup', 'utf8').includes('docker');
+      
+      return hasDockerEnv || hasContainerInit;
+    } catch (err) {
+      this.logWarn('Error detecting containerized environment:', err.message);
+      return false;
+    }
+  }
+  
+  /**
+   * Provide intelligent process name inference for system ports
+   * @param {number} port Port number
+   * @param {string} protocol Protocol (tcp/udp) 
+   * @param {string} method Detection method context
+   * @returns {string} Inferred process name
+   * @private
+   */
+  _getIntelligentPortOwner(port, protocol, method) {
+    const systemServices = {
+      22: 'sshd',
+      23: 'telnetd', 
+      25: 'postfix',
+      53: protocol === 'udp' ? 'dnsmasq' : 'named',
+      67: 'dnsmasq',
+      68: 'dhclient',
+      80: 'nginx',
+      110: 'dovecot',
+      123: 'chronyd',
+      137: 'nmbd',
+      138: 'nmbd',
+      139: 'smbd',
+      143: 'dovecot',
+      161: 'snmpd',
+      162: 'snmpd',
+      389: 'slapd',
+      443: 'nginx',
+      445: 'smbd',
+      500: 'strongswan',
+      514: 'rsyslogd',
+      587: 'postfix',
+      636: 'slapd',
+      993: 'dovecot',
+      995: 'dovecot',
+      1194: 'openvpn',
+      1433: 'sqlservr',
+      3306: 'mysqld',
+      4500: 'strongswan',
+      5432: 'postgres',
+      6379: 'redis-server',
+      8080: 'nginx',
+      8443: 'nginx',
+      51820: 'wireguard',
+      51821: 'wg-easy',
+      51822: 'wireguard'
+    };
+    
+    const serviceName = systemServices[port];
+    if (serviceName) {
+      return serviceName;
+    }
+    
+    if (method === 'nsenter-host' && port >= 8000 && port <= 9000) {
+      return 'docker-proxy';
+    }
+    
+    if (port < 1024) {
+      return 'system-service';
+    }
+    
+    return method === 'container' ? 'container-service' : 'host-service';
   }
 
   /**
