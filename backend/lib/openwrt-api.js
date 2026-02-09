@@ -227,10 +227,11 @@ class SshUciClient {
   }
 
   /**
-   * Test connection
+   * Test connection - returns detailed info
    */
   async testConnection() {
     try {
+      // First, try to execute a simple command to verify connection
       const version = await this.exec('cat /etc/openwrt_release 2>/dev/null | head -1 || uname -r');
       return {
         success: true,
@@ -238,9 +239,11 @@ class SshUciClient {
         version: version || 'Unknown'
       };
     } catch (error) {
+      logger.error('SSH connection error:', error.message, error.code);
       return {
         success: false,
-        message: `Connection failed: ${error.message}`
+        message: `SSH failed: ${error.message}`,
+        code: error.code || 'UNKNOWN'
       };
     }
   }
@@ -458,6 +461,13 @@ class OpenWrtClient {
       return { ...result, mode: 'ssh', requiresPlugins: false };
     } catch (sshError) {
       logger.debug('SSH failed:', sshError.message);
+      return {
+        success: false,
+        message: `SSH 连接失败: ${sshError.message}`,
+        hint: '请检查: 1) 用户名和密码是否正确 2) SSH 密码认证是否启用 3) root 用户登录是否允许',
+        mode: 'ssh',
+        requiresPlugins: false
+      };
     }
 
     // Try JSON-RPC
