@@ -1,10 +1,11 @@
 /**
  * OpenWrt Router API Client
- * Implements UCI and Luci JSON-RPC integration for OpenWrt-based routers
+ * Supports both JSON-RPC (luci-mod-rpc) and SSH+UCI modes
  */
 
 const { decryptPassword } = require('./router-encryption');
 const { Logger } = require('./logger');
+const { Client } = require('ssh2');
 
 const logger = new Logger('OpenWrtAPI');
 
@@ -14,15 +15,15 @@ const DEFAULT_TIMEOUT = 10000;
 
 /**
  * Parse router URL to get base URL and RPC path
- * @param {string} url - Router URL (e.g., http://192.168.1.1:8080)
- * @returns {object} - { baseUrl, rpcPath }
  */
 function parseRouterUrl(url) {
   try {
     const urlObj = new URL(url);
     return {
       baseUrl: `${urlObj.protocol}//${urlObj.host}`,
-      rpcPath: urlObj.pathname || DEFAULT_RPC_PATH
+      rpcPath: urlObj.pathname || DEFAULT_RPC_PATH,
+      hostname: urlObj.hostname,
+      port: urlObj.port || (urlObj.protocol === 'https' ? 443 : 80)
     };
   } catch (error) {
     throw new Error(`Invalid router URL: ${url}`);
@@ -31,8 +32,6 @@ function parseRouterUrl(url) {
 
 /**
  * Generate a UCI-compatible name from a service name
- * @param {string} name - Service name
- * @returns {string} - UCI-compatible name
  */
 function generateUciName(name) {
   return name
@@ -43,8 +42,6 @@ function generateUciName(name) {
 
 /**
  * Check if a string is a valid IP address
- * @param {string} ip - IP address to validate
- * @returns {boolean}
  */
 function isValidIpAddress(ip) {
   const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -53,14 +50,189 @@ function isValidIpAddress(ip) {
 
 /**
  * Validate port number
- * @param {number} port - Port number
- * @returns {boolean}
  */
 function isValidPort(port) {
   return Number.isInteger(port) && port >= 1 && port <= 65535;
 }
 
-class OpenWrtClient {
+/**
+ * SSH-based UCI Client (no plugins required)
+ */
+class SshUciClient {
+  constructor(config) {
+    this.hostname = config.hostname || '192.168.1.1';
+    this.port = config.port || 22;
+    this.username = config.username || 'root';
+    this.password = config.password;
+    this.timeout = config.timeout || 15000;
+  }
+
+  /**
+   * Execute a command via SSH and return the result
+   */
+  async exec(command) {
+    return new Promise((resolve, reject) => {
+      const conn = new Client();
+      
+      conn.on('ready', () => {
+        conn.exec(command, (err, stream) => {
+          if (err) {
+            conn.end();
+            return reject(err);
+          }
+          
+          let stdout = '';
+          let stderr = '';
+          
+          stream.on('close', (code, signal) => {
+            conn.end();
+            if (code === 0) {
+              resolve(stdout.trim());
+            } else {
+              reject(new Error(`Command exited with code ${code}: ${stderr}`));
+            }
+          });
+          
+          stream.on('data', (data) => {
+            stdout += data.toString();
+          });
+          
+          stream.stderr.on('data', (data) => {
+            stderr += data.toString();
+          });
+        });
+      });
+      
+      conn.on('error', (err) => {
+        conn.end();
+        reject(err);
+      });
+      
+      conn.connect({
+        host: this.hostname,
+        port: this.port,
+        username: this.username,
+        password: this.password,
+        readyTimeout: this.timeout,
+        timeout: this.timeout
+      });
+    });
+  }
+
+  /**
+   * Execute UCI command
+   */
+  async uci(command) {
+    return this.exec(`uci ${command}`);
+  }
+
+  /**
+   * Get all redirect rules from firewall config
+   */
+  async getRedirects() {
+    try {
+      const output = await this.exec("uci show firewall 2>/dev/null | grep '=redirect'");
+      const rules = [];
+      
+      if (!output) return rules;
+      
+      const lines = output.split('\n');
+      for (const line of lines) {
+        const match = line.match(/firewall\.(\w+)=redirect/);
+        if (match) {
+          const name = await this.exec(`uci get firewall.${match[1]}.name 2>/dev/null`);
+          const target = await this.exec(`uci get firewall.${match[1]}.target 2>/dev/null`);
+          const src = await this.exec(`uci get firewall.${match[1]}.src 2>/dev/null`);
+          const dest = await this.exec(`uci get firewall.${match[1]}.dest 2>/dev/null`);
+          const proto = await this.exec(`uci get firewall.${match[1]}.proto 2>/dev/null`);
+          const srcPort = await this.exec(`uci get firewall.${match[1]}.src_dport 2>/dev/null`);
+          const destIp = await this.exec(`uci get firewall.${match[1]}.dest_ip 2>/dev/null`);
+          const destPort = await this.exec(`uci get firewall.${match[1]}.dest_port 2>/dev/null`);
+          const enabled = await this.exec(`uci get firewall.${match[1]}.enabled 2>/dev/null`);
+          
+          rules.push({
+            id: match[1],
+            name: name || 'Unnamed',
+            target,
+            src,
+            dest,
+            protocol: proto || 'tcp',
+            external_port: parseInt(srcPort) || 0,
+            internal_ip: destIp || '',
+            internal_port: parseInt(destPort) || 0,
+            enabled: enabled !== '0'
+          });
+        }
+      }
+      
+      return rules;
+    } catch (error) {
+      logger.error('Failed to get redirects:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Add a new port forwarding rule
+   */
+  async addRedirect(config) {
+    const uciName = generateUciName(config.name || 'port_forward');
+    
+    // Add redirect
+    await this.exec(`uci add firewall redirect`);
+    await this.exec(`uci set firewall.@redirect[-1].name='${uciName}'`);
+    await this.exec(`uci set firewall.@redirect[-1].target='DNAT'`);
+    await this.exec(`uci set firewall.@redirect[-1].src='wan'`);
+    await this.exec(`uci set firewall.@redirect[-1].dest='lan'`);
+    await this.exec(`uci set firewall.@redirect[-1].proto='${config.protocol || 'tcp'}'`);
+    await this.exec(`uci set firewall.@redirect[-1].src_dport='${config.externalPort}'`);
+    await this.exec(`uci set firewall.@redirect[-1].dest_ip='${config.internalIp}'`);
+    await this.exec(`uci set firewall.@redirect[-1].dest_port='${config.internalPort}'`);
+    await this.exec(`uci set firewall.@redirect[-1].enabled='1'`);
+    
+    // Commit changes
+    await this.exec('uci commit firewall');
+    
+    // Restart firewall
+    await this.exec('/etc/init.d/firewall restart 2>/dev/null || true');
+    
+    return { success: true, id: uciName };
+  }
+
+  /**
+   * Delete a port forwarding rule
+   */
+  async deleteRedirect(id) {
+    await this.exec(`uci delete firewall.${id}`);
+    await this.exec('uci commit firewall');
+    await this.exec('/etc/init.d/firewall restart 2>/dev/null || true');
+    return { success: true };
+  }
+
+  /**
+   * Test connection
+   */
+  async testConnection() {
+    try {
+      const version = await this.exec('cat /etc/openwrt_release 2>/dev/null | head -1 || uname -r');
+      return {
+        success: true,
+        message: `Connected to OpenWrt (${version})`,
+        version: version || 'Unknown'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Connection failed: ${error.message}`
+      };
+    }
+  }
+}
+
+/**
+ * JSON-RPC Client (requires luci-mod-rpc)
+ */
+class OpenWrtRpcClient {
   constructor(config) {
     this.baseUrl = config.baseUrl;
     this.rpcPath = config.rpcPath || DEFAULT_RPC_PATH;
@@ -69,412 +241,292 @@ class OpenWrtClient {
     this.authToken = null;
     this.timeout = config.timeout || DEFAULT_TIMEOUT;
     
-    logger.info(`Initialized OpenWrt client for ${this.baseUrl}`);
-  }
-
-  /**
-   * Authenticate with the router and get auth token
-   * @returns {Promise<string>} - Auth token
-   */
-  async authenticate() {
-    try {
-      const response = await this.callRpc('auth', {
-        method: 'login',
-        params: [this.username, this.password]
-      });
-
-      if (response.error) {
-        throw new Error(`Authentication failed: ${response.error}`);
-      }
-
-      this.authToken = response.result;
-      logger.info('Successfully authenticated with router');
-      return this.authToken;
-    } catch (error) {
-      logger.error('Authentication error:', error.message);
-      throw error;
-    }
+    logger.info(`Initialized RPC client for ${this.baseUrl}`);
   }
 
   /**
    * Make a JSON-RPC call to Luci
-   * @param {string} methodGroup - Method group (e.g., 'uci', 'sys', 'auth')
-   * @param {string} method - Method name
-   * @param {Array} params - Parameters
-   * @returns {Promise<object>} - RPC response
    */
-  async callRpc(methodGroup, method, params = []) {
-    const fullRpcUrl = `${this.baseUrl}${this.rpcPath}/${methodGroup}`;
+  async callRpc(method, params = []) {
+    const url = `${this.baseUrl}${this.rpcPath}/${method}`;
     
-    const payload = {
-      id: Math.floor(Math.random() * 10000),
-      method,
-      params
-    };
-
-    const fetch = (await import('node-fetch')).default;
-    const response = await fetch(fullRpcUrl, {
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(this.authToken && { 'X-LuCI-Auth': this.authToken })
-      },
-      body: JSON.stringify(payload),
-      timeout: this.timeout
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 1,
+        method: 'call',
+        params: [this.authToken, 'uci', ...params]
+      })
     });
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   }
 
   /**
-   * Execute a UCI command
-   * @param {string} command - UCI command (e.g., 'add', 'set', 'get')
-   * @param {Array} params - Command parameters
-   * @returns {Promise<any>}
+   * Execute UCI command via JSON-RPC
    */
-  async uci(command, params = []) {
-    if (!this.authToken) {
-      await this.authenticate();
-    }
-    return this.callRpc('uci', command, params);
+  async uci(method, params = []) {
+    return this.callRpc('call', [this.authToken, 'uci', method, params]);
   }
 
   /**
-   * Test connection to the router
-   * @returns {Promise<boolean>}
+   * Authenticate with the router
+   */
+  async authenticate() {
+    const url = `${this.baseUrl}${this.rpcPath}/auth`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 1,
+        method: 'login',
+        params: [this.username, this.password]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Authentication failed: HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(`Authentication failed: ${data.error}`);
+    }
+
+    this.authToken = data.result;
+    return this.authToken;
+  }
+
+  /**
+   * Test connection (JSON-RPC mode)
    */
   async testConnection() {
     try {
-      // Try to authenticate
+      // Try authentication first
       await this.authenticate();
-      return { success: true, message: 'Connection successful' };
-    } catch (error) {
-      return { 
-        success: false, 
-        message: error.message || 'Failed to connect to router'
-      };
-    }
-  }
-
-  /**
-   * Get router system info
-   * @returns {Promise<object>}
-   */
-  async getSystemInfo() {
-    if (!this.authToken) {
-      await this.authenticate();
-    }
-
-    try {
-      const [uptime, memory, hostname] = await Promise.all([
-        this.callRpc('sys', 'exec', { command: 'uptime' }),
-        this.callRpc('sys', 'exec', { command: 'cat /proc/meminfo | grep -E "MemTotal|MemFree"' }),
-        this.callRpc('sys', 'get', ['system', '@system[0]', 'hostname'])
-      ]);
-
-      return {
-        hostname: hostname?.result || 'Unknown',
-        uptime: uptime?.result || 'Unknown',
-        memory: memory?.result || 'Unknown'
-      };
-    } catch (error) {
-      logger.warn('Failed to get system info:', error.message);
-      return { hostname: 'Unknown', uptime: 'Unknown', memory: 'Unknown' };
-    }
-  }
-
-  /**
-   * Get all port forwarding rules from the router
-   * @returns {Promise<Array>}
-   */
-  async getPortForwardings() {
-    if (!this.authToken) {
-      await this.authenticate();
-    }
-
-    try {
-      const response = await this.uci('get_all', ['firewall']);
       
-      if (response.error) {
-        throw new Error(`UCI error: ${response.error}`);
-      }
-
-      const rules = [];
-      const result = response.result || {};
-
-      // Parse firewall config to find redirect rules
-      Object.keys(result).forEach((key) => {
-        const section = result[key];
-        if (section['.type'] === 'redirect') {
-          rules.push({
-            uciName: key,
-            name: section.name || key,
-            target: section.target,
-            src: section.src,
-            dest: section.dest,
-            proto: section.proto,
-            srcDport: section.src_dport,
-            destIp: section.dest_ip,
-            destPort: section.dest_port,
-            enabled: section.enabled !== '0',
-            reflection: section.reflection
-          });
-        }
-      });
-
-      return rules;
-    } catch (error) {
-      logger.error('Failed to get port forwardings:', error.message);
-      throw error;
-    }
-  }
-
-  /**
-   * Add a new port forwarding rule
-   * @param {object} config - Port forwarding configuration
-   * @returns {Promise<object>}
-   */
-  async addPortForwarding(config) {
-    if (!this.authToken) {
-      await this.authenticate();
-    }
-
-    const {
-      name,
-      protocol = 'tcp',
-      externalPort,
-      internalIp,
-      internalPort,
-      src = 'wan',
-      dest = 'lan',
-      target = 'DNAT'
-    } = config;
-
-    // Validate inputs
-    if (!isValidIpAddress(internalIp)) {
-      throw new Error(`Invalid internal IP address: ${internalIp}`);
-    }
-    if (!isValidPort(externalPort)) {
-      throw new Error(`Invalid external port: ${externalPort}`);
-    }
-    if (!isValidPort(internalPort)) {
-      throw new Error(`Invalid internal port: ${internalPort}`);
-    }
-
-    const uciName = generateUciName(name);
-
-    try {
-      // Add redirect
-      const addResult = await this.uci('add', ['firewall', 'redirect']);
-      if (addResult.error) {
-        throw new Error(`Failed to add redirect: ${addResult.error}`);
-      }
-
-      // Rename to our custom name
-      const renameResult = await this.uci('rename', ['firewall', '@redirect[-1]', uciName]);
-      if (renameResult.error) {
-        throw new Error(`Failed to rename redirect: ${renameResult.error}`);
-      }
-
-      // Set configuration
-      const setOps = [
-        ['set', ['firewall', uciName, 'name', name]],
-        ['set', ['firewall', uciName, 'target', target]],
-        ['set', ['firewall', uciName, 'src', src]],
-        ['set', ['firewall', uciName, 'dest', dest]],
-        ['set', ['firewall', uciName, 'proto', protocol]],
-        ['set', ['firewall', uciName, 'src_dport', String(externalPort)]],
-        ['set', ['firewall', uciName, 'dest_ip', internalIp]],
-        ['set', ['firewall', uciName, 'dest_port', String(internalPort)]],
-        ['set', ['firewall', uciName, 'enabled', '1']]
-      ];
-
-      for (const op of setOps) {
-        const result = await this.uci(op[0], op[1]);
-        if (result.error) {
-          throw new Error(`Failed to set ${op[1][1]}: ${result.error}`);
-        }
-      }
-
-      // Commit changes
-      const commitResult = await this.uci('commit', ['firewall']);
-      if (commitResult.error) {
-        throw new Error(`Failed to commit firewall config: ${commitResult.error}`);
-      }
-
-      logger.info(`Added port forwarding rule: ${name} (${externalPort} -> ${internalIp}:${internalPort})`);
-
-      return {
-        success: true,
-        uciName,
-        message: `Port forwarding "${name}" added successfully`
-      };
-    } catch (error) {
-      logger.error('Failed to add port forwarding:', error.message);
-      throw error;
-    }
-  }
-
-  /**
-   * Update an existing port forwarding rule
-   * @param {string} uciName - UCI config name
-   * @param {object} config - Updated configuration
-   * @returns {Promise<object>}
-   */
-  async updatePortForwarding(uciName, config) {
-    if (!this.authToken) {
-      await this.authenticate();
-    }
-
-    const {
-      name,
-      protocol,
-      externalPort,
-      internalIp,
-      internalPort,
-      enabled
-    } = config;
-
-    try {
-      const updates = [];
-      
-      if (name) updates.push(['set', ['firewall', uciName, 'name', name]]);
-      if (protocol) updates.push(['set', ['firewall', uciName, 'proto', protocol]]);
-      if (externalPort) updates.push(['set', ['firewall', uciName, 'src_dport', String(externalPort)]]);
-      if (internalIp) updates.push(['set', ['firewall', uciName, 'dest_ip', internalIp]]);
-      if (internalPort) updates.push(['set', ['firewall', uciName, 'dest_port', String(internalPort)]]);
-      if (typeof enabled === 'boolean') updates.push(['set', ['firewall', uciName, 'enabled', enabled ? '1' : '0']]);
-
-      for (const op of updates) {
-        const result = await this.uci(op[0], op[1]);
-        if (result.error) {
-          throw new Error(`Failed to update ${op[1][1]}: ${result.error}`);
-        }
-      }
-
-      const commitResult = await this.uci('commit', ['firewall']);
-      if (commitResult.error) {
-        throw new Error(`Failed to commit firewall config: ${commitResult.error}`);
-      }
-
-      logger.info(`Updated port forwarding rule: ${uciName}`);
-
-      return {
-        success: true,
-        uciName,
-        message: `Port forwarding "${name || uciName}" updated successfully`
-      };
-    } catch (error) {
-      logger.error('Failed to update port forwarding:', error.message);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a port forwarding rule
-   * @param {string} uciName - UCI config name
-   * @returns {Promise<object>}
-   */
-  async deletePortForwarding(uciName) {
-    if (!this.authToken) {
-      await this.authenticate();
-    }
-
-    try {
-      // Delete the redirect
-      const deleteResult = await this.uci('delete', ['firewall', uciName]);
-      if (deleteResult.error) {
-        throw new Error(`Failed to delete redirect: ${deleteResult.error}`);
-      }
-
-      // Commit changes
-      const commitResult = await this.uci('commit', ['firewall']);
-      if (commitResult.error) {
-        throw new Error(`Failed to commit firewall config: ${commitResult.error}`);
-      }
-
-      logger.info(`Deleted port forwarding rule: ${uciName}`);
-
-      return {
-        success: true,
-        uciName,
-        message: `Port forwarding "${uciName}" deleted successfully`
-      };
-    } catch (error) {
-      logger.error('Failed to delete port forwarding:', error.message);
-      throw error;
-    }
-  }
-
-  /**
-   * Enable/disable a port forwarding rule
-   * @param {string} uciName - UCI config name
-   * @param {boolean} enabled - Enable or disable
-   * @returns {Promise<object>}
-   */
-  async setPortForwardingEnabled(uciName, enabled) {
-    return this.updatePortForwarding(uciName, { enabled });
-  }
-
-  /**
-   * Reload firewall to apply changes
-   * @returns {Promise<object>}
-   */
-  async reloadFirewall() {
-    if (!this.authToken) {
-      await this.authenticate();
-    }
-
-    try {
-      const result = await this.callRpc('sys', 'exec', { command: '/etc/init.d/firewall reload' });
-      
-      logger.info('Firewall reloaded');
+      // Get system info
+      const sysInfo = await this.callRpc('call', [this.authToken, 'uci', 'get', ['system', 'info']]);
       
       return {
         success: true,
-        message: 'Firewall reloaded successfully'
+        message: 'JSON-RPC connection successful',
+        mode: 'rpc'
       };
     } catch (error) {
-      logger.warn('Failed to reload firewall:', error.message);
-      // Don't throw - firewall might not need reload for UCI changes
       return {
         success: false,
-        message: `Failed to reload firewall: ${error.message}`
+        message: `JSON-RPC failed: ${error.message}`,
+        mode: 'rpc'
       };
     }
   }
 }
 
 /**
- * Create a router client from database config
- * @param {object} dbConfig - Database router config object
- * @returns {Promise<OpenWrtClient>}
+ * Unified OpenWrt Client - auto-detects best mode
+ */
+class OpenWrtClient {
+  constructor(config) {
+    this.connectionMode = config.connectionMode || 'auto'; // 'rpc', 'ssh', or 'auto'
+    this.rpcClient = null;
+    this.sshClient = null;
+    
+    const parsed = parseRouterUrl(config.url);
+    this.baseUrl = parsed.baseUrl;
+    this.hostname = parsed.hostname;
+    this.port = parsed.port;
+    this.username = config.username;
+    this.password = config.password;
+    this.timeout = config.timeout || DEFAULT_TIMEOUT;
+    
+    logger.info(`Initialized OpenWrt client for ${this.baseUrl}`);
+  }
+
+  /**
+   * Initialize the appropriate client based on connection mode
+   */
+  async initialize() {
+    if (this.connectionMode === 'ssh') {
+      this.sshClient = new SshUciClient({
+        hostname: this.hostname,
+        port: this.port,
+        username: this.username,
+        password: this.password,
+        timeout: this.timeout
+      });
+      return;
+    }
+
+    if (this.connectionMode === 'rpc') {
+      this.rpcClient = new OpenWrtRpcClient({
+        baseUrl: this.baseUrl,
+        username: this.username,
+        password: this.password,
+        timeout: this.timeout
+      });
+      return;
+    }
+
+    // Auto-detect mode: try SSH first (works without plugins)
+    this.sshClient = new SshUciClient({
+      hostname: this.hostname,
+      port: this.port,
+      username: this.username,
+      password: this.password,
+      timeout: this.timeout
+    });
+
+    try {
+      const sshResult = await this.sshClient.testConnection();
+      if (sshResult.success) {
+        this.connectionMode = 'ssh';
+        logger.info('Using SSH+UCI mode (no plugins required)');
+        return;
+      }
+    } catch (e) {
+      logger.debug('SSH connection failed, trying JSON-RPC...');
+    }
+
+    // Fallback to JSON-RPC
+    if (this.rpcClient === null) {
+      this.rpcClient = new OpenWrtRpcClient({
+        baseUrl: this.baseUrl,
+        username: this.username,
+        password: this.password,
+        timeout: this.timeout
+      });
+    }
+
+    try {
+      const rpcResult = await this.rpcClient.testConnection();
+      if (rpcResult.success) {
+        await this.rpcClient.authenticate();
+        this.connectionMode = 'rpc';
+        logger.info('Using JSON-RPC mode');
+        return;
+      }
+    } catch (e) {
+      logger.debug('JSON-RPC connection failed');
+    }
+
+    throw new Error('Unable to connect to router. Please check your settings.');
+  }
+
+  /**
+   * Test connection and return mode info
+   */
+  async testConnection() {
+    // Try SSH first (no plugins needed)
+    const sshClient = new SshUciClient({
+      hostname: this.hostname,
+      port: this.port,
+      username: this.username,
+      password: this.password,
+      timeout: this.timeout
+    });
+
+    try {
+      const result = await sshClient.testConnection();
+      this.sshClient = sshClient;
+      this.connectionMode = 'ssh';
+      return { ...result, mode: 'ssh', requiresPlugins: false };
+    } catch (sshError) {
+      logger.debug('SSH failed:', sshError.message);
+    }
+
+    // Try JSON-RPC
+    const rpcClient = new OpenWrtRpcClient({
+      baseUrl: this.baseUrl,
+      username: this.username,
+      password: this.password,
+      timeout: this.timeout
+    });
+
+    try {
+      const result = await rpcClient.testConnection();
+      this.rpcClient = rpcClient;
+      this.connectionMode = 'rpc';
+      return { ...result, mode: 'rpc', requiresPlugins: true };
+    } catch (rpcError) {
+      logger.debug('JSON-RPC failed:', rpcError.message);
+    }
+
+    return {
+      success: false,
+      message: 'Unable to connect via SSH or JSON-RPC',
+      hints: [
+        'Ensure SSH is enabled on your router (default: port 22)',
+        'For JSON-RPC, install luci-mod-rpc: opkg install luci-mod-rpc'
+      ]
+    };
+  }
+
+  /**
+   * Get all port forwarding rules
+   */
+  async getPortForwardings() {
+    if (this.connectionMode === 'ssh') {
+      const local = await this.sshClient.getRedirects();
+      return { local, mode: 'ssh' };
+    }
+
+    // RPC mode implementation would go here
+    const local = await this.rpcClient.uci('get', ['firewall']);
+    return { local: [], mode: 'rpc' };
+  }
+
+  /**
+   * Add a port forwarding rule
+   */
+  async addPortForwarding(config) {
+    if (this.connectionMode === 'ssh') {
+      return this.sshClient.addRedirect(config);
+    }
+
+    // RPC mode implementation
+    throw new Error('JSON-RPC mode not yet implemented for adding forwardings');
+  }
+
+  /**
+   * Delete a port forwarding rule
+   */
+  async deletePortForwarding(id) {
+    if (this.connectionMode === 'ssh') {
+      return this.sshClient.deleteRedirect(id);
+    }
+
+    throw new Error('JSON-RPC mode not yet implemented for deleting forwardings');
+  }
+}
+
+/**
+ * Factory function to create client from DB config
  */
 async function createClientFromDbConfig(dbConfig) {
-  const { routerUrl, username, encryptedPassword, encryptionIv, encryptionTag } = dbConfig;
-  
-  // Decrypt password
-  const password = decryptPassword({
-    encryptedPassword,
-    encryptionIv,
-    encryptionTag
+  const client = new OpenWrtClient({
+    url: dbConfig.router_url,
+    username: dbConfig.username,
+    password: dbConfig.password ? decryptPassword(dbConfig.password) : null,
+    connectionMode: 'auto',
+    timeout: 15000
   });
 
-  const { baseUrl } = parseRouterUrl(routerUrl);
-
-  return new OpenWrtClient({
-    baseUrl,
-    username,
-    password
-  });
+  await client.initialize();
+  return client;
 }
 
 module.exports = {
   OpenWrtClient,
+  SshUciClient,
+  OpenWrtRpcClient,
   createClientFromDbConfig,
   parseRouterUrl,
   generateUciName,

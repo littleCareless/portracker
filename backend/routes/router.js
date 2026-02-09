@@ -68,14 +68,14 @@ router.get('/config/:id', requireAuth, (req, res) => {
  */
 router.post('/config/test', requireAuth, async (req, res) => {
   try {
-    const { routerUrl, authType, username, password } = req.body;
+    const { routerUrl, username, password } = req.body;
 
     if (!routerUrl) {
       return res.status(400).json({ error: getErrorMessage('routerUrlRequired') });
     }
 
     const client = new OpenWrtClient({
-      baseUrl: routerUrl.includes('://') ? routerUrl : `http://${routerUrl}`,
+      url: routerUrl.includes('://') ? routerUrl : `http://${routerUrl}`,
       username,
       password
     });

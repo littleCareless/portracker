@@ -386,23 +386,41 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
                   value={routerForm.username}
                   onChange={(e) => setRouterForm({ ...routerForm, username: e.target.value })}
                 />
+                <p className="text-xs text-slate-500">
+                  {t("settings.router.routerUrlHint")}
+                </p>
                 <Input
                   type="password"
                   placeholder={t("settings.router.password")}
                   value={routerForm.password}
                   onChange={(e) => setRouterForm({ ...routerForm, password: e.target.value })}
                 />
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  SSH 模式无需安装任何插件</p>
 
                 {testResult && (
-                  <div className={`flex items-center gap-2 text-sm ${
+                  <div className={`space-y-1 text-sm ${
                     testResult.success ? "text-emerald-600" : "text-red-500"
                   }`}>
-                    {testResult.success ? (
-                      <CheckCircle className="h-4 w-4" />
-                    ) : (
-                      <XCircle className="h-4 w-4" />
+                    <div className="flex items-center gap-2">
+                      {testResult.success ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      {testResult.message}
+                    </div>
+                    {testResult.success && (
+                      <div className="flex items-center gap-2 text-xs text-slate-500 ml-6">
+                        <Shield className="h-3 w-3" />
+                        {testResult.mode === 'ssh' ? (
+                          <span>SSH+UCI mode (无需插件)</span>
+                        ) : (
+                          <span>JSON-RPC mode (需要 luci-mod-rpc 插件)</span>
+                        )}
+                      </div>
                     )}
-                    {testResult.message}
                   </div>
                 )}
 

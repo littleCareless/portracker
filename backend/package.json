@@ -25,6 +25,7 @@
     "express": "^4.18.2",
     "express-session": "^1.18.0",
     "node-fetch": "^3.3.2",
+    "ssh2": "^1.17.0",
     "ws": "^8.14.2"
   },
   "devDependencies": {
