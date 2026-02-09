@@ -18,6 +18,9 @@ RUN npm run build
 FROM node:20-bookworm-slim AS backend-build
 WORKDIR /app/backend
 
+# Install pnpm
+RUN npm install -g pnpm
+
 # Install build dependencies for native modules
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
@@ -30,10 +33,10 @@ RUN apt-get clean && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
-COPY backend/package*.json ./
+COPY backend/package*.json pnpm-lock.yaml ./
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install dependencies (ignore scripts for faster build, rebuild later if needed)
+RUN pnpm config set ignore-scripts true && pnpm install --prod && pnpm config set ignore-scripts false
 
 # Copy backend source
 COPY backend/ ./
