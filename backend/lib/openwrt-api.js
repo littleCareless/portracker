@@ -367,7 +367,6 @@ class OpenWrtClient {
     
     logger.info(`Initialized OpenWrt client for ${this.hostname}:${this.port}`);
   }
-  }
 
   /**
    * Initialize the appropriate client based on connection mode
