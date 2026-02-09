@@ -333,7 +333,7 @@ module.exports = [
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
-      globals: globals.browser,
+      globals: { ...globals.browser, t: 'readonly' },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   plugins: { logs: logsPlugin, codebase: codebasePlugin, ...(reactHooks ? { 'react-hooks': reactHooks } : {}), ...(reactPlugin ? { react: reactPlugin } : {}) },

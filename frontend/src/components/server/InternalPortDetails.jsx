@@ -225,7 +225,7 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
           </DrawerHeader>
   <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-8 py-4" aria-describedby="container-details-help">
           {!contentMounted && (
-            <div className="animate-pulse text-xs text-slate-500 px-1">Preparing details...</div>
+            <div className="animate-pulse text-xs text-slate-500 px-1">{t('container.preparingDetails')}</div>
           )}
           {contentMounted && (
             <>
@@ -258,7 +258,7 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                       <h4 id="identity-section-heading" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1"><Box className="w-4 h-4" /> {t('container.identity')}</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <InfoTile label={t('container.name')} value={data.name} copyKey="name" isCopied={copiedKey==='name'} onCopy={(v)=>handleCopyGeneric('name',v)} />
-                        <InfoTile label="ID" value={data.id} displayValue={data.id?.slice(0,12)} copyKey="id" isCopied={copiedKey==='id'} onCopy={(v)=>handleCopyGeneric('id',v)} tooltip={data.id} />
+                        <InfoTile label={t('container.id')} value={data.id} displayValue={data.id?.slice(0,12)} copyKey="id" isCopied={copiedKey==='id'} onCopy={(v)=>handleCopyGeneric('id',v)} tooltip={data.id} />
                         <InfoTile label={t('container.image')} value={data.image} copyKey="image" isCopied={copiedKey==='image'} mono onCopy={(v)=>handleCopyGeneric('image',v)} />
                         {data.imageDigest && (<InfoTile label={t('container.digest')} value={data.imageDigest} displayValue={data.imageDigest} copyKey="digest" isCopied={copiedKey==='digest'} mono onCopy={(v)=>handleCopyGeneric('digest',v)} />)}
                       </div>

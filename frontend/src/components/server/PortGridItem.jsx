@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { ExternalLink, Lock, Tag } from "lucide-react";
 import {
   Tooltip,
@@ -160,7 +161,7 @@ export function PortGridItem({
                   <TooltipContent>
                     {searchMatches.target ? (
                       <span>
-                        Internal:{" "}
+                        {t('server.internal')}: 
                         {shouldHighlight
                           ? renderHighlightedText(
                               highlightText(port.target, searchTerm)
@@ -168,7 +169,7 @@ export function PortGridItem({
                           : port.target}
                       </span>
                     ) : (
-                      `Internal: ${port.target}`
+                      t('server.internalValue', { target: port.target })
                     )}
                   </TooltipContent>
                   )
@@ -210,7 +211,7 @@ export function PortGridItem({
       {searchMatches.target && port.target !== port.host_port.toString() && (
         <div className="mb-2">
           <span className="text-xs text-slate-500 dark:text-slate-400 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded border border-yellow-200 dark:border-yellow-700/50">
-            Internal:{" "}
+            {t('server.internal')}: 
             {shouldHighlight
               ? renderHighlightedText(highlightText(port.target, searchTerm))
               : port.target}

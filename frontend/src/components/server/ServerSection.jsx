@@ -270,25 +270,25 @@ function ServerSectionComponent({
     if (groupingMode === "services") {
       const count = groupedServices.length;
       if (count === 0) {
-        return "It's empty in here.";
+        return t('server.emptyHere');
       }
       if (count < 5) {
         return `Feels lonely with ${count} service${count === 1 ? "" : "s"}.`;
       }
       if (count > 30) {
-        return `Hoarder alert: Wow.. ${count} services.`;
+        return t('server.hoarderAlert', { count, type: t('server.services') });
       }
       return null;
     }
     const count = visiblePorts.length;
     if (count === 0) {
-      return "It's empty in here.";
+      return t('server.emptyHere');
     }
     if (count < 10) {
       return `Feels lonely with ${count} port${count === 1 ? "" : "s"}.`;
     }
     if (count > 99) {
-      return `Hoarder alert: Wow.. ${count} ports.`;
+      return t('server.hoarderAlert', { count, type: t('server.ports') });
     }
     return null;
   }, [visiblePorts.length, groupingMode, groupedServices.length]);
@@ -490,8 +490,8 @@ function ServerSectionComponent({
                     {portMood
                       ? portMood
                       : groupingMode === "services"
-                        ? `${groupedServices.length} services (${visiblePorts.length} ports)`
-                        : `Published: ${counts.published}, Internal: ${counts.internal}${showInternal ? " (showing internal)" : " (hiding internal)"}`}
+                        ? `${t('server.servicesPortsTotal', { services: groupedServices.length, ports: visiblePorts.length })}`
+                        : t('server.publishedInternal' + (showInternal ? 'Showing' : 'Hiding'), { published: counts.published, internal: counts.internal })}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -510,7 +510,7 @@ function ServerSectionComponent({
                         <Layers className="h-4 w-4" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>View by Services</TooltipContent>
+                    <TooltipContent>{t('server.viewByServices')}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <TooltipProvider>
@@ -527,7 +527,7 @@ function ServerSectionComponent({
                         <List className="h-4 w-4" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>View by Ports</TooltipContent>
+                    <TooltipContent>{t('server.viewByPorts')}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
@@ -545,7 +545,7 @@ function ServerSectionComponent({
                       {showIcons ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>{showIcons ? "Hide Icons" : "Show Icons"}</TooltipContent>
+                  <TooltipContent>{showIcons ? t('server.hideIcons') : t('server.showIcons')}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
               {groupingMode === "ports" ? t('server.ports') : t('server.services')}
@@ -559,7 +559,7 @@ function ServerSectionComponent({
                   <TooltipContent>
                     {groupingMode === "services"
                       ? `${groupedServices.length} services (${visiblePorts.length} ports total)`
-                      : `Published: ${counts.published}, Internal: ${counts.internal}${showInternal ? " (showing internal)" : " (hiding internal)"}`}
+                      : t('server.publishedInternal' + (showInternal ? 'Showing' : 'Hiding'), { published: counts.published, internal: counts.internal })}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -582,10 +582,10 @@ function ServerSectionComponent({
                       ) : (
                         <Sparkles className="h-4 w-4 mr-2" />
                       )}
-                      Generate port
+                      {t('server.generatePort')}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Generate an unused port for this server</TooltipContent>
+                  <TooltipContent>{t('server.generatePortDesc')}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
 
@@ -602,11 +602,11 @@ function ServerSectionComponent({
                       aria-pressed={showInternal}
                     >
                       <Lock className="h-4 w-4 mr-2" />
-                      {showInternal ? "Internal: On" : "Internal: Off"}
+                      {showInternal ? t('server.internalOn') : t('server.internalOff')}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {`${showInternal ? "Hide" : "Show"} internal ports`}
+                    {`${showInternal ? t('server.hide') : t('server.show')} internal ports`}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -614,7 +614,7 @@ function ServerSectionComponent({
                 <DropdownMenuTrigger asChild>
                   <button className="inline-flex items-center px-2 sm:px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                     <ArrowDownUp className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Sort By:&nbsp;</span>
+                    <span className="hidden sm:inline">{t('server.sortBy')}&nbsp;</span>
                     {getSortDisplayName(sortConfig.key)}
                     {sortConfig.key !== "default" && (
                       <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
@@ -637,7 +637,7 @@ function ServerSectionComponent({
                           : ""
                       }
                     >
-                      Default Order
+                      {t('server.defaultOrder')}
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -656,7 +656,7 @@ function ServerSectionComponent({
                           : ""
                       }
                     >
-                      Port (Asc)
+                      {t('server.portAsc')}
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -675,7 +675,7 @@ function ServerSectionComponent({
                           : ""
                       }
                     >
-                      Port (Desc)
+                      {t('server.portDesc')}
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -691,7 +691,7 @@ function ServerSectionComponent({
                           : ""
                       }
                     >
-                      Service (A-Z)
+                      {t('server.serviceAZ')}
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -707,7 +707,7 @@ function ServerSectionComponent({
                           : ""
                       }
                     >
-                      Service (Z-A)
+                      {t('server.serviceZA')}
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -723,7 +723,7 @@ function ServerSectionComponent({
                           : ""
                       }
                     >
-                      Created (Oldest)
+                      {t('server.createdOldest')}
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -739,7 +739,7 @@ function ServerSectionComponent({
                           : ""
                       }
                     >
-                      Created (Newest)
+                      {t('server.createdNewest')}
                     </span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -759,7 +759,7 @@ function ServerSectionComponent({
                         <List className="h-4 w-4" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>List view</TooltipContent>
+                    <TooltipContent>{t('server.listView')}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <TooltipProvider>
@@ -776,7 +776,7 @@ function ServerSectionComponent({
                         <Grid3x3 className="h-4 w-4" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>Grid view</TooltipContent>
+                    <TooltipContent>{t('server.gridView')}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
                 <TooltipProvider>
@@ -793,7 +793,7 @@ function ServerSectionComponent({
                         <Table className="h-4 w-4" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>Table view</TooltipContent>
+                    <TooltipContent>{t('server.tableView')}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
@@ -813,7 +813,7 @@ function ServerSectionComponent({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {selectionMode ? "Exit selection mode" : "Select ports"}
+                    {selectionMode ? t('server.exitSelection') : t('server.selectPorts')}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -830,11 +830,11 @@ function ServerSectionComponent({
                   )}
                   <span className="hidden sm:inline">
                     {isExpanded
-                      ? "Show Less"
-                      : `Show All (${groupingMode === "services" ? groupedServices.length : sortedPorts.length})`}
+                      ? t('server.showLess')
+                      : t('server.showAllCount', { count: groupingMode === "services" ? groupedServices.length : sortedPorts.length })}
                   </span>
                   <span className="sm:hidden">
-                    {isExpanded ? "Less" : "All"}
+                    {isExpanded ? t('server.less') : t('server.all')}
                   </span>
                 </button>
               )}

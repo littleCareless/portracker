@@ -157,7 +157,7 @@ function PortCardComponent({
                     <TooltipContent>
                       {searchMatches.target ? (
                         <span>
-                          Internal:{" "}
+                          {t('server.internal')}: 
                           {shouldHighlight
                             ? renderHighlightedText(
                                 highlightText(port.target, searchTerm)
@@ -165,7 +165,7 @@ function PortCardComponent({
                             : port.target}
                         </span>
                       ) : (
-                        `Internal: ${port.target}`
+                        t('server.internalValue', { target: port.target })
                       )}
                     </TooltipContent>
                   )
@@ -180,7 +180,7 @@ function PortCardComponent({
           {searchMatches.target &&
             port.target !== port.host_port.toString() && (
               <span className="text-xs text-slate-500 dark:text-slate-400 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded border border-yellow-200 dark:border-yellow-700/50">
-                Internal:{" "}
+                {t('server.internal')}: 
                 {renderHighlightedText(highlightText(port.target, searchTerm))}
               </span>
             )}
