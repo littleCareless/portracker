@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, startTransition } from "react";
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import {
   DrawerContent,
   DrawerHeader,
@@ -20,6 +21,7 @@ import { formatBytes, formatDuration } from '@/lib/utils';
 import { RESTART_POLICY_STYLES, isEphemeralContainer } from '@/lib/constants';
 
 export function InternalPortDetails({ open, onOpenChange, containerId, serverId }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -211,17 +213,16 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
         className="flex flex-col h-full outline-none sm:max-w-lg md:max-w-xl lg:max-w-2xl w-full"
       >
         <DrawerClose onClick={() => onOpenChange(false)} data-autofocus />
-  <DrawerHeader className="pb-3 pr-10 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <Box className="w-5 h-5 text-slate-500" />
-            <DrawerTitle id="container-details-title" className="text-base font-semibold tracking-wide">Container Details</DrawerTitle>
-            <div className="ml-auto flex items-center gap-2" />
-          </div>
-          <DrawerDescription className="text-slate-500 dark:text-slate-400">
-            Inspect runtime, networking, and metadata.
-          </DrawerDescription>
-        </DrawerHeader>
-
+          <DrawerHeader className="pb-3 pr-10 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <Box className="w-5 h-5 text-slate-500" />
+              <DrawerTitle id="container-details-title" className="text-base font-semibold tracking-wide">{t('container.details')}</DrawerTitle>
+              <div className="ml-auto flex items-center gap-2" />
+            </div>
+            <DrawerDescription className="text-slate-500 dark:text-slate-400">
+              {t('container.inspectDescription')}
+            </DrawerDescription>
+          </DrawerHeader>
   <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-8 py-4" aria-describedby="container-details-help">
           {!contentMounted && (
             <div className="animate-pulse text-xs text-slate-500 px-1">Preparing details...</div>
@@ -230,14 +231,14 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
             <>
               <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
               <div ref={announceRef} aria-live="polite" className="sr-only" />
-              <p id="container-details-help" className="sr-only">Use Tab to move, Escape to close. Copy buttons announce success. Sections are collapsible.</p>
+              <p id="container-details-help" className="sr-only">{t('container.keyboardHelp')}</p>
             </>
           )}
           
           {loading && (
             <div className="flex items-center gap-2 text-sm text-slate-500 px-1">
               <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
-              Loading container details...
+              {t('container.loadingDetails')}
             </div>
           )}
           
@@ -254,51 +255,51 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
             <div className="space-y-8 px-1">
               <section className="space-y-6">
                     <div role="group" aria-labelledby="identity-section-heading">
-                      <h4 id="identity-section-heading" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1"><Box className="w-4 h-4" /> Identity</h4>
+                      <h4 id="identity-section-heading" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1"><Box className="w-4 h-4" /> {t('container.identity')}</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <InfoTile label="Name" value={data.name} copyKey="name" isCopied={copiedKey==='name'} onCopy={(v)=>handleCopyGeneric('name',v)} />
+                        <InfoTile label={t('container.name')} value={data.name} copyKey="name" isCopied={copiedKey==='name'} onCopy={(v)=>handleCopyGeneric('name',v)} />
                         <InfoTile label="ID" value={data.id} displayValue={data.id?.slice(0,12)} copyKey="id" isCopied={copiedKey==='id'} onCopy={(v)=>handleCopyGeneric('id',v)} tooltip={data.id} />
-                        <InfoTile label="Image" value={data.image} copyKey="image" isCopied={copiedKey==='image'} mono onCopy={(v)=>handleCopyGeneric('image',v)} />
-                        {data.imageDigest && (<InfoTile label="Digest" value={data.imageDigest} displayValue={data.imageDigest} copyKey="digest" isCopied={copiedKey==='digest'} mono onCopy={(v)=>handleCopyGeneric('digest',v)} />)}
+                        <InfoTile label={t('container.image')} value={data.image} copyKey="image" isCopied={copiedKey==='image'} mono onCopy={(v)=>handleCopyGeneric('image',v)} />
+                        {data.imageDigest && (<InfoTile label={t('container.digest')} value={data.imageDigest} displayValue={data.imageDigest} copyKey="digest" isCopied={copiedKey==='digest'} mono onCopy={(v)=>handleCopyGeneric('digest',v)} />)}
                       </div>
                     </div>
                     <div role="group" aria-labelledby="runtime-section-heading">
-                      <h4 id="runtime-section-heading" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1"><Activity className="w-4 h-4" /> Runtime</h4>
+                      <h4 id="runtime-section-heading" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1"><Activity className="w-4 h-4" /> {t('container.runtime')}</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40">
                           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 font-medium mb-1">
-                            <Activity className="w-4 h-4" /> State
+                            <Activity className="w-4 h-4" /> {t('container.state')}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap text-sm">
                             <span className={`w-2 h-2 rounded-full ${data.state === 'running' ? 'bg-green-500' : data.state === 'exited' ? 'bg-red-500' : 'bg-slate-400'}`}></span>
-                            <span className="font-medium capitalize">{data.state || 'unknown'}</span>
+                            <span className="font-medium capitalize">{data.state || t('container.unknown')}</span>
                             {data.health && data.health !== 'none' ? (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-medium">
                                 {data.health}
                               </span>
                             ) : (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 text-[10px] font-medium">
-                                no healthcheck
+                                {t('container.noHealthcheck')}
                               </span>
                             )}
                           </div>
                         </div>
                         {data.uptimeSeconds != null && (
                           <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-1 text-xs">
-                            <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><ClockIcon /> Uptime</div>
+                            <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><ClockIcon /> {t('container.uptime')}</div>
                             <div className="font-mono text-[11px]">{formatDuration(data.uptimeSeconds)}</div>
                           </div>
                         )}
                         <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-2 text-xs">
                           <div className="flex items-center justify-between">
-                            <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><Settings2 className="w-3.5 h-3.5" /> Restart Policy</div>
+                            <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><Settings2 className="w-3.5 h-3.5" /> {t('container.restartPolicy')}</div>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Info className="w-3.5 h-3.5 text-slate-400" />
                                 </TooltipTrigger>
                                 <TooltipContent side="left" className="max-w-xs text-xs leading-relaxed">
-                                  Value reflects the container's configured Docker restart policy. "none" means no policy set. on-failure includes an optional max retry count. unless-stopped and always continue regardless of manual restarts.
+                                  {t('container.restartPolicyTooltip')}
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -307,42 +308,42 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                             {(() => { const policy = data.restartPolicy || 'none'; const cls = RESTART_POLICY_STYLES[policy] || RESTART_POLICY_STYLES.none; return (<span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide uppercase ${cls}`}>{policy}</span>); })()}
                             {isEphemeralContainer(data) && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300 text-[10px] font-medium">
-                                <Gauge className="w-3 h-3" /> ephemeral
+                                <Gauge className="w-3 h-3" /> {t('container.ephemeral')}
                               </span>
                             )}
                             {data.restartPolicy === 'on-failure' && data.restartRetries != null && (
-                              <span className="text-[10px] text-slate-500">max {data.restartRetries} retries</span>
+                              <span className="text-[10px] text-slate-500">{t('container.maxRetries', { count: data.restartRetries })}</span>
                             )}
                             {data.restartPolicy === 'none' && data.restartPolicyRaw && data.restartPolicyRaw !== '' && (
-                              <span className="text-[10px] text-slate-500">raw: {data.restartPolicyRaw}</span>
+                              <span className="text-[10px] text-slate-500">{t('container.rawPolicy', { policy: data.restartPolicyRaw })}</span>
                             )}
                             {data.restartPolicy === 'none' && (!data.restartPolicyRaw || data.restartPolicyRaw === '') && (
-                              <span className="text-[10px] text-slate-400">(no restart policy configured)</span>
+                              <span className="text-[10px] text-slate-400">{t('container.noRestartPolicy')}</span>
                             )}
                           </div>
                         </div>
                         <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-1 text-xs">
-                          <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><Activity className="w-3.5 h-3.5" /> Restart Count</div>
+                          <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><Activity className="w-3.5 h-3.5" /> {t('container.restartCount')}</div>
                           <div className="flex items-center gap-2">
                             <span className={`font-mono text-[11px] ${data.restartCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'}`}>{data.restartCount ?? 0}</span>
                             {data.restartCount > 0 && (
-                              <span className="inline-flex px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[10px] font-medium">restarted</span>
+                              <span className="inline-flex px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[10px] font-medium">{t('container.restarted')}</span>
                             )}
                           </div>
                         </div>
                         {(data.sizeRwBytes != null || data.sizeRootFsBytes != null) && (
                           <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-1 text-xs">
-                            <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><HardDrive className="w-3.5 h-3.5" /> Size</div>
+                            <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><HardDrive className="w-3.5 h-3.5" /> {t('container.size')}</div>
                             <div className="flex flex-col font-mono text-[11px] gap-0.5">
-                              {data.sizeRwBytes != null && <span>RW: {formatBytes(data.sizeRwBytes)}</span>}
-                              {data.sizeRootFsBytes != null && <span>RootFS: {formatBytes(data.sizeRootFsBytes)}</span>}
+                              {data.sizeRwBytes != null && <span>{t('container.rwSize')}: {formatBytes(data.sizeRwBytes)}</span>}
+                              {data.sizeRootFsBytes != null && <span>{t('container.rootfsSize')}: {formatBytes(data.sizeRootFsBytes)}</span>}
                             </div>
                           </div>
                         )}
                         {data.stats && (
                           <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-1 text-xs relative sm:col-span-2">
                             <div className="flex items-center justify-between">
-                              <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><Cpu className="w-3.5 h-3.5" /> Stats</div>
+                              <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><Cpu className="w-3.5 h-3.5" /> {t('container.stats')}</div>
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -350,24 +351,24 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                       type="button"
                                       onClick={() => refreshStats(false)}
                                       disabled={statsLoading}
-                                      aria-label="Refresh stats"
+                                      aria-label={t('container.refreshStats')}
                                       className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700/60 transition-colors disabled:opacity-50"
                                     >
                                       <RefreshCw className={`w-4 h-4 ${statsLoading ? 'animate-spin' : ''}`} />
                                     </button>
                                   </TooltipTrigger>
                                   <TooltipContent side="left" className="text-[10px]">
-                                    {statsLoading ? 'Refreshing…' : (() => {
+                                    {statsLoading ? t('container.refreshing') : (() => {
                                       if (statsError) return statsError;
                                       const ts = data?.statsSampledAt || null;
-                                      if (!ts) return 'No stats yet';
+                                      if (!ts) return t('container.noStatsYet');
                                       const sampled = Date.parse(ts);
-                                      if (Number.isNaN(sampled)) return 'Last updated: unknown';
+                                      if (Number.isNaN(sampled)) return t('container.lastUpdatedUnknown');
                                       const diffSec = Math.max(0, Math.floor((Date.now() - sampled) / 1000));
-                                      if (diffSec < 60) return `Updated ${diffSec}s ago`;
+                                      if (diffSec < 60) return t('container.updatedSecondsAgo', { count: diffSec });
                                       const mins = Math.floor(diffSec / 60);
                                       const secs = diffSec % 60;
-                                      return `Updated ${mins}m ${secs}s ago`;
+                                      return t('container.updatedMinutesAgo', { mins, secs });
                                     })()}
                                   </TooltipContent>
                                 </Tooltip>
@@ -376,10 +377,10 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                             <div className="grid grid-cols-2 gap-2 font-mono text-[11px] min-h-[28px]">
                               {data.stats ? (
                                 <>
-                                  {data.stats.cpuPercent != null && <span>CPU: {data.stats.cpuPercent.toFixed(1)}%</span>}
-                                  {data.stats.memUsagePercent != null && <span>Mem: {data.stats.memUsagePercent.toFixed(1)}%</span>}
-                                  {data.stats.memBytes != null && <span>MemUse: {formatBytes(data.stats.memBytes)}</span>}
-                                  {data.stats.memLimitBytes != null && <span>MemLim: {formatBytes(data.stats.memLimitBytes)}</span>}
+                                  {data.stats.cpuPercent != null && <span>{t('container.cpu')}: {data.stats.cpuPercent.toFixed(1)}%</span>}
+                                  {data.stats.memUsagePercent != null && <span>{t('container.memUsage')}: {data.stats.memUsagePercent.toFixed(1)}%</span>}
+                                  {data.stats.memBytes != null && <span>{t('container.memUse')}: {formatBytes(data.stats.memBytes)}</span>}
+                                  {data.stats.memLimitBytes != null && <span>{t('container.memLimit')}: {formatBytes(data.stats.memLimitBytes)}</span>}
                                 </>
                               ) : (
                                 <StatsSkeleton />
@@ -390,10 +391,10 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                 const sampled = Date.parse(data.statsSampledAt);
                                 if (Number.isNaN(sampled)) return null;
                                 const diffSec = Math.max(0, Math.floor((Date.now() - sampled) / 1000));
-                                if (diffSec < 60) return `Updated ${diffSec}s ago`;
+                                if (diffSec < 60) return t('container.updatedSecondsAgo', { count: diffSec });
                                 const mins = Math.floor(diffSec / 60);
                                 const secs = diffSec % 60;
-                                return `Updated ${mins}m ${secs}s ago`;
+                                return t('container.updatedMinutesAgo', { mins, secs });
                               })()}</div>
                             )}
                             {statsError && <div className="text-[10px] text-red-600">{statsError}</div>}
@@ -401,15 +402,15 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                         )}
                         {!data.stats && !statsLoading && !statsError && !statsAttempted && (
                           <div className="p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-900/20 text-xs text-slate-500 sm:col-span-2">
-                            <div className="mb-2 font-medium text-[10px] uppercase tracking-wide text-slate-500">Stats</div>
+                            <div className="mb-2 font-medium text-[10px] uppercase tracking-wide text-slate-500">{t('container.stats')}</div>
                             <StatsSkeleton />
-                            <div className="mt-2 text-[10px] text-slate-500">Use the refresh icon to load live container usage.</div>
+                            <div className="mt-2 text-[10px] text-slate-500">{t('container.statsHelp')}</div>
                           </div>
                         )}
                         {!data.stats && !statsLoading && !statsError && statsAttempted && statsUnavailableReason && (
                           <div className="p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-amber-50 dark:bg-amber-900/10 text-xs text-amber-700 dark:text-amber-300 flex flex-col gap-2 sm:col-span-2">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium">Stats unavailable</span>
+                              <span className="font-medium">{t('container.statsUnavailable')}</span>
                               <Button
                                 type="button"
                                 size="sm"
@@ -417,9 +418,9 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                 disabled={statsLoading}
                                 className="h-6 px-2 text-[11px]"
                                 onClick={refreshStats}
-                                aria-label="Retry fetching stats"
+                                aria-label={t('container.retryFetchStats')}
                               >
-                                {statsLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Retry
+                                {statsLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} {t('container.retry')}
                               </Button>
                             </div>
                             <span className="text-[11px] leading-snug text-amber-700/90 dark:text-amber-300/80">
@@ -427,21 +428,18 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                 if (statsUnavailableReason) {
                                   if (statsUnavailableReason.startsWith('container_not_running:')) {
                                     const s = statsUnavailableReason.split(':')[1];
-                                    return `Container state is "${s}". Docker only reports live usage for running containers.`;
+                                    return t('container.containerNotRunning', { state: s });
                                   }
                                   if (statsUnavailableReason.startsWith('stats_error:')) {
-                                    return 'Docker API error while retrieving stats (recorded). Try again or check daemon logs.';
+                                    return t('container.dockerStatsError');
                                   }
                                   if (statsUnavailableReason === 'docker_returned_null') {
-                                    return 'Docker returned no metrics. Platform/engine may not expose stats for this container.';
+                                    return t('container.dockerNoMetrics');
                                   }
                                 }
-                                if (data.uptimeSeconds != null && data.uptimeSeconds < 5) return 'Container just started; metrics may not be ready yet.';
-                                return 'Metrics unavailable.';
+                                if (data.uptimeSeconds != null && data.uptimeSeconds < 5) return t('container.metricsNotReady');
+                                return t('container.metricsUnavailable');
                               })()}
-                              {statsUnavailableReason && statsUnavailableReason.startsWith('stats_error:') && (
-                                <span className="block mt-1 opacity-70">Reason code: {statsUnavailableReason}</span>
-                              )}
                             </span>
                           </div>
                         )}
@@ -454,24 +452,23 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                       </div>
                     </div>
                     
-                    <div role="group" aria-labelledby="network-section-heading">
-                      <h4 id="network-section-heading" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1"><Globe2 className="w-4 h-4" /> Network</h4>
-                      <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 flex items-center gap-3 text-sm flex-wrap">
-                        <span className="font-medium">{data.networkMode}</span>
-                        {data.networks?.length ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-medium">{data.networks.length} net</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </section>
-
-                  
-          <section aria-labelledby="ports-section-heading">
-                    <div className="flex items-center justify-between mb-2">
-            <h4 id="ports-section-heading" className="flex items-center gap-1.5 text-sm font-semibold"><Network className="w-4 h-4 text-slate-500" /> Ports</h4>
-                      <span className="text-xs text-slate-500">{data.ports.length} mapping{data.ports.length === 1 ? "" : "s"}</span>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 max-h-56 overflow-y-auto">
+                                        <div role="group" aria-labelledby="network-section-heading">
+                                          <h4 id="network-section-heading" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1"><Globe2 className="w-4 h-4" /> {t('container.network')}</h4>
+                                          <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 flex items-center gap-3 text-sm flex-wrap">
+                                            <span className="font-medium">{data.networkMode}</span>
+                                            {data.networks?.length ? (
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-medium">{t('container.netCount', { count: data.networks.length })}</span>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                      </section>
+                    
+                                      
+                                      <section aria-labelledby="ports-section-heading">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <h4 id="ports-section-heading" className="flex items-center gap-1.5 text-sm font-semibold"><Network className="w-4 h-4 text-slate-500" /> {t('container.ports')}</h4>
+                                          <span className="text-xs text-slate-500">{t('container.portMappings', { count: data.ports.length })}</span>
+                                        </div>                    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 max-h-56 overflow-y-auto">
                       <ul className="divide-y divide-slate-200 dark:divide-slate-800">
                         {data.ports.map((p, idx) => (
                           <li key={idx} className="px-3 py-2 text-xs flex items-center justify-between gap-3">
@@ -509,18 +506,18 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                     >
                       <div className="flex items-center gap-2">
                         <Settings2 className="w-4 h-4 text-slate-500" />
-                        <h4 className="text-sm font-semibold">More Details</h4>
-                        <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">Optional</span>
+                        <h4 className="text-sm font-semibold">{t('container.moreDetails')}</h4>
+                        <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{t('container.optional')}</span>
                       </div>
                       {showAdvanced ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
                     </button>
                     {showAdvanced && (
-                      <div id="advanced-details-region" className="mt-3 space-y-5 pl-1" role="region" aria-label="Additional container details">
+                      <div id="advanced-details-region" className="mt-3 space-y-5 pl-1" role="region" aria-label={t('container.additionalDetails')}>
                         
-                        <DetailsPanel title="Access" icon={<Terminal className="w-4 h-4" />}>
+                        <DetailsPanel title={t('container.access')} icon={<Terminal className="w-4 h-4" />}>
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-slate-500">Shell</span>
+                              <span className="text-xs text-slate-500">{t('container.shell')}</span>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button type="button" variant="outline" size="sm" className="h-7 px-2">
@@ -540,11 +537,11 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button type="button" variant="outline" size="icon" aria-label={copiedKey==='exec' ? 'Copied' : 'Copy command'} onClick={() => handleCopyGeneric('exec', execCmd)} className="shrink-0">
+                                    <Button type="button" variant="outline" size="icon" aria-label={copiedKey==='exec' ? t('container.copied') : t('container.copyCommand')} onClick={() => handleCopyGeneric('exec', execCmd)} className="shrink-0">
                                       {copiedKey==='exec' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>{copiedKey==='exec' ? 'Copied' : 'Copy'}</TooltipContent>
+                                  <TooltipContent>{copiedKey==='exec' ? t('container.copied') : t('container.copy')}</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </div>
@@ -554,7 +551,7 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                         {data.createdISO && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 space-y-1 text-xs">
-                              <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><ClockIcon /> Created</div>
+                              <div className="font-medium flex items-center gap-1 text-slate-600 dark:text-slate-300"><ClockIcon /> {t('container.created')}</div>
                               <div className="font-mono text-[11px]">{new Date(data.createdISO).toLocaleString()}</div>
                             </div>
                           </div>
@@ -562,18 +559,18 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                         
                         <div className="space-y-4">
                           {data.networks && data.networks.length > 0 && (
-                            <DetailsPanel title={`Networks (${data.networks.length})`} icon={<Globe2 className="w-4 h-4" />}>
+                            <DetailsPanel title={t('container.networksCount', { count: data.networks.length })} icon={<Globe2 className="w-4 h-4" />}>
                               <div className="grid gap-2 max-h-48 overflow-y-auto pr-1">
                                 {data.networks.map((network, idx) => (
                                   <div key={idx} className="p-2 rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40">
                                     <div className="flex items-center justify-between mb-1">
                                       <span className="font-medium text-xs">{network.name}</span>
-                                      <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-medium">net</span>
+                                      <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-medium">{t('container.net')}</span>
                                     </div>
                                     <div className="space-y-0.5 text-[11px] text-slate-600 dark:text-slate-400">
-                                      {network.ip && <div>IP: {network.ip}</div>}
-                                      {network.gateway && <div>Gateway: {network.gateway}</div>}
-                                      {network.mac && <div>MAC: {network.mac}</div>}
+                                      {network.ip && <div>{t('container.ip')}: {network.ip}</div>}
+                                      {network.gateway && <div>{t('container.gateway')}: {network.gateway}</div>}
+                                      {network.mac && <div>{t('container.mac')}: {network.mac}</div>}
                                     </div>
                                   </div>
                                 ))}
@@ -581,7 +578,7 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                             </DetailsPanel>
                           )}
                           {data.labels && Object.keys(data.labels).length > 0 && (
-                            <DetailsPanel title={`Labels (${Object.keys(data.labels).length})`} icon={<Tag className="w-4 h-4" />}>
+                            <DetailsPanel title={t('container.labelsCount', { count: Object.keys(data.labels).length })} icon={<Tag className="w-4 h-4" />}>
                               {(() => {
                                 const allEntries = Object.entries(data.labels);
                                 const entries = labelFilter ? allEntries.filter(([k,v]) => k.toLowerCase().includes(labelFilter.toLowerCase()) || (v||'').toLowerCase().includes(labelFilter.toLowerCase())) : allEntries;
@@ -591,7 +588,7 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                     {allEntries.length > 10 && (
                                       <input
                                         type="text"
-                                        placeholder="Filter labels…"
+                                        placeholder={t('container.filterLabels')}
                                         value={labelFilter}
                                         onChange={(e)=>setLabelFilter(e.target.value)}
                                         className="w-full px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
@@ -622,13 +619,13 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                                   <span className="text-slate-700 dark:text-slate-300">{value}</span>
                                                 )
                                               ) : (
-                                                <span className='italic opacity-60'>(empty)</span>
+                                                <span className='italic opacity-60'>{t('container.empty')}</span>
                                               )}
                                             </div>
                                             <button
                                               type="button"
                                               onClick={()=>handleCopyGeneric(copyId, value || '')}
-                                              aria-label={copied ? 'Copied label' : 'Copy label'}
+                                              aria-label={copied ? t('container.copiedLabel') : t('container.copyLabel')}
                                               className={`absolute top-1.5 right-1.5 p-1 rounded transition-colors ${copied ? 'bg-green-100 dark:bg-green-900/30' : 'hover:bg-slate-200 dark:hover:bg-slate-700/40'}`}
                                             >
                                               {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -637,7 +634,7 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                         );
                                       })}
                                       {entries.length === 0 && (
-                                        <div className="text-[11px] italic text-slate-500 dark:text-slate-400">No labels match filter.</div>
+                                        <div className="text-[11px] italic text-slate-500 dark:text-slate-400">{t('container.noLabelsMatch')}</div>
                                       )}
                                     </div>
                                   </div>
@@ -646,7 +643,7 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                             </DetailsPanel>
                           )}
                           {data.mounts && data.mounts.length > 0 && (
-                            <DetailsPanel title={`Mounts (${data.mounts.length})`} icon={<HardDrive className="w-4 h-4" />}>
+                            <DetailsPanel title={t('container.mountsCount', { count: data.mounts.length })} icon={<HardDrive className="w-4 h-4" />}>
                               {(() => {
                                 const scroll = data.mounts.length > 10;
                                 return (
@@ -663,7 +660,7 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                       return (
                                         <div key={idx} className="p-2 rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 flex flex-col gap-1">
                                           <div className="flex items-center gap-2 text-[10px]">
-                                            <span className={`inline-flex px-1.5 py-0.5 rounded-full font-medium tracking-wide uppercase ${chipClasses}`}>{mount.type || 'UNKNOWN'}</span>
+                                            <span className={`inline-flex px-1.5 py-0.5 rounded-full font-medium tracking-wide uppercase ${chipClasses}`}>{mount.type || t('container.unknown')}</span>
                                             <span className="font-mono text-[10px] text-slate-500">{idx + 1}</span>
                                           </div>
                                           <div className="font-mono text-[11px] break-all">
@@ -679,14 +676,14 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                               })()}
                             </DetailsPanel>
                           )}
-                          <DetailsPanel title="JSON (raw inspect)" icon={<FileJson className="w-4 h-4" />} defaultOpen={false}>
+                          <DetailsPanel title={t('container.jsonInspect')} icon={<FileJson className="w-4 h-4" />} defaultOpen={false}>
                             <div className="space-y-2">
                               {!rawState.data && !rawState.loading && !rawState.error && (
                                 <Button type="button" variant="outline" size="sm" onClick={loadRaw} className="h-7 px-2 inline-flex items-center gap-1">
-                                  <FileJson className="w-3.5 h-3.5" /> Load Raw
+                                  <FileJson className="w-3.5 h-3.5" /> {t('container.loadRaw')}
                                 </Button>
                               )}
-                              {rawState.loading && <div className="text-xs text-slate-500">Loading raw inspect…</div>}
+                              {rawState.loading && <div className="text-xs text-slate-500">{t('container.loadingRaw')}</div>}
                               {rawState.error && <div className="text-xs text-red-600">{rawState.error}</div>}
                               {rawState.data && (
                                 <div className="space-y-2">
@@ -697,20 +694,20 @@ export function InternalPortDetails({ open, onOpenChange, containerId, serverId 
                                       size="sm"
                                       className="h-7 px-2"
                                       onClick={() => handleCopyGeneric('raw', JSON.stringify(rawState.data))}
-                                      aria-label={copiedKey==='raw' ? 'Raw JSON copied' : 'Copy raw JSON'}
+                                      aria-label={copiedKey==='raw' ? t('container.rawJsonCopied') : t('container.copyRawJson')}
                                     >
-                                      {copiedKey==='raw' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />} Copy JSON
+                                      {copiedKey==='raw' ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />} {t('container.copyJson')}
                                     </Button>
                                     <a
                                       href={`/api/containers/${encodeURIComponent(containerId)}/details?${['export=true','raw=true', serverId ? `server_id=${encodeURIComponent(serverId)}` : null].filter(Boolean).join('&')}`}
                                       className="inline-flex items-center gap-1 h-7 px-2 rounded border border-slate-300 dark:border-slate-700 text-xs hover:bg-slate-100 dark:hover:bg-slate-800"
                                       download
-                                      aria-label="Export container details JSON"
+                                      aria-label={t('container.exportJson')}
                                     >
-                                      <Download className="w-3.5 h-3.5" /> Export
+                                      <Download className="w-3.5 h-3.5" /> {t('container.export')}
                                     </a>
                                   </div>
-                                  <pre className="text-[10px] leading-snug max-h-64 overflow-auto p-2 bg-slate-950/95 dark:bg-slate-950 text-slate-100 rounded border border-slate-800" aria-label="Raw JSON inspection" tabIndex={0}>
+                                  <pre className="text-[10px] leading-snug max-h-64 overflow-auto p-2 bg-slate-950/95 dark:bg-slate-950 text-slate-100 rounded border border-slate-800" aria-label={t('container.rawJson')} tabIndex={0}>
 {JSON.stringify(rawState.data, null, 2)}
                                   </pre>
                                 </div>

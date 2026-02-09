@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { ExternalLink, Lock, Tag } from "lucide-react";
 import {
   Tooltip,
@@ -34,8 +35,9 @@ export function InlinePortRow({
   autoxposeUrlStyle = "compact",
   isLastInGroup = false,
 }) {
+  const { t } = useTranslation();
   const hostForUi = getDisplayHost(port, serverId, serverUrl, hostOverride);
-  const containerName = port.compose_service || port.owner || "Unknown";
+  const containerName = port.compose_service || port.owner || t('sidebar.unknownServer');
   const itemKey = generatePortKey(serverId, port);
 
   return (
@@ -75,7 +77,7 @@ export function InlinePortRow({
               actionFeedback={actionFeedback}
               onClick={() => onRename?.(serverId, port)}
               icon={Tag}
-              title="Rename service"
+              title={t('server.renameService')}
               size="sm"
             />
           </div>
@@ -151,7 +153,7 @@ export function InlinePortRow({
             </Tooltip>
           </TooltipProvider>
         ) : (
-          "N/A"
+          t('sidebar.na')
         )}
       </td>
 

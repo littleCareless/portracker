@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -48,6 +49,7 @@ export function AppHeader({
   refreshInterval = 30000,
   autoxposeStatus = null,
 }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [searching, setSearching] = useState(false);
@@ -165,7 +167,7 @@ export function AppHeader({
             </div>
             <Input
               type="text"
-              placeholder="Search ports, processes..."
+              placeholder={t('layout.header.search')}
               className={`pl-10 ${getInputPadding()} w-full max-w-[36rem] sm:max-w-[28rem] md:max-w-[32rem] lg:max-w-[40rem] border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
               value={localSearchTerm}
               onChange={(e) => setLocalSearchTerm(e.target.value)}
@@ -185,7 +187,7 @@ export function AppHeader({
                       <X className="h-4 w-4" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Clear search</TooltipContent>
+                  <TooltipContent>{t('common.search')} - {t('common.close')}</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -199,29 +201,29 @@ export function AppHeader({
                     variant="ghost"
                     size="icon"
                     className="hover:bg-gray-100 dark:hover:bg-gray-800"
-                    aria-label="Search options"
+                    aria-label={t('layout.header.filter')}
                   >
                     <SlidersHorizontal className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent>Search options</TooltipContent>
+              <TooltipContent>{t('layout.header.filter')}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end" className="w-56" onOpenAutoFocus={e => e.preventDefault()}>
               <TooltipProvider delayDuration={500} skipDelayDuration={0}>
-                <div className="px-2 pt-1 pb-2 text-xs text-slate-500">Scope</div>
+                <div className="px-2 pt-1 pb-2 text-xs text-slate-500">{t('layout.header.view')}</div>
                 <DropdownMenuRadioGroup value={searchScope} onValueChange={onSearchScopeChange}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <DropdownMenuRadioItem value="server">Server</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="server">{t('layout.header.server')}</DropdownMenuRadioItem>
                     </TooltipTrigger>
-                    <TooltipContent>Search only the selected server</TooltipContent>
+                    <TooltipContent>{t('layout.header.searchThisServer')}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <DropdownMenuRadioItem value="all">Global</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="all">{t('layout.header.global')}</DropdownMenuRadioItem>
                     </TooltipTrigger>
-                    <TooltipContent>Search across all servers</TooltipContent>
+                    <TooltipContent>{t('layout.header.searchAllServers')}</TooltipContent>
                   </Tooltip>
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator />
@@ -231,10 +233,10 @@ export function AppHeader({
                       checked={!!searchHighlighting}
                       onCheckedChange={(v) => onSearchHighlightingChange(!!v)}
                     >
-                      Highlight
+                      {t('layout.header.highlight')}
                     </DropdownMenuCheckboxItem>
                   </TooltipTrigger>
-                  <TooltipContent>Highlight matching text in results</TooltipContent>
+                  <TooltipContent>{t('layout.header.highlightMatchingText')}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </DropdownMenuContent>
@@ -276,7 +278,7 @@ export function AppHeader({
                 {refreshIcon}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{loading ? "Refreshing..." : "Refresh all data"}</TooltipContent>
+            <TooltipContent>{loading ? t('common.loading') : t('layout.header.refresh')}</TooltipContent>
           </Tooltip>
 
           {onAutoRefreshToggle && (
@@ -295,8 +297,8 @@ export function AppHeader({
               </TooltipTrigger>
               <TooltipContent>
                 {autoRefreshEnabled 
-                  ? `Auto-refresh enabled (${refreshInterval >= 60000 ? `${refreshInterval / 60000}min` : `${refreshInterval / 1000}s`})` 
-                  : "Enable auto-refresh"}
+                  ? `${t('settings.autoRefresh')} (${refreshInterval >= 60000 ? `${refreshInterval / 60000}min` : `${refreshInterval / 1000}s`})` 
+                  : t('settings.autoRefresh')}
               </TooltipContent>
             </Tooltip>
           )}
@@ -321,7 +323,7 @@ export function AppHeader({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {hasNewFeatures ? "See what's new!" : "What's new"}
+                {hasNewFeatures ? t('settings.whatsNew.view') : t('settings.whatsNew.title')}
               </TooltipContent>
             </Tooltip>
           )}
@@ -341,7 +343,7 @@ export function AppHeader({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{isDarkMode ? "Switch to light mode" : "Switch to dark mode"}</TooltipContent>
+            <TooltipContent>{isDarkMode ? t('layout.header.light') : t('layout.header.dark')}</TooltipContent>
           </Tooltip>
 
           {hackerMode && onDisableHackerMode && (
@@ -368,7 +370,7 @@ export function AppHeader({
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent>{auth.authEnabled && auth.authenticated ? "Account" : "Menu"}</TooltipContent>
+              <TooltipContent>{auth.authEnabled && auth.authenticated ? t('layout.header.account') : t('common.settings')}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end" className="w-48">
               {auth.authEnabled && auth.authenticated && (
@@ -382,13 +384,13 @@ export function AppHeader({
               {onOpenSettings && (
                 <DropdownMenuItem onClick={onOpenSettings}>
                   <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  {t('common.settings')}
                 </DropdownMenuItem>
               )}
               {auth.authEnabled && auth.authenticated && onOpenApiKey && (
                 <DropdownMenuItem onClick={onOpenApiKey}>
                   <Key className="mr-2 h-4 w-4" />
-                  API Key
+                  {t('settings.apiKey.title')}
                 </DropdownMenuItem>
               )}
               {auth.authEnabled && auth.authenticated && (
@@ -396,7 +398,7 @@ export function AppHeader({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={auth.logout} className="text-red-600 dark:text-red-400">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Logout
+                    {t('layout.header.logout')}
                   </DropdownMenuItem>
                 </>
               )}

@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   ChevronUp,
@@ -102,6 +103,7 @@ function ServerSectionComponent({
   autoxposeUrlStyle,
   autoxposePorts,
 }) {
+  const { t } = useTranslation();
   const logger = useMemo(() => new Logger('ServerSection'), []);
   const { copiedKey, copy } = useClipboard();
   const suggestionPort = portSuggestion?.port;
@@ -302,11 +304,11 @@ function ServerSectionComponent({
   const getSortDisplayName = (key) => {
     switch (key) {
       case "default":
-        return "Default";
+        return t('server.sortDefault');
       case "host_port":
-        return "Port";
+        return t('server.port');
       case "owner":
-        return "Service";
+        return t('server.service');
       default:
         return key.charAt(0).toUpperCase() + key.slice(1);
     }
@@ -375,7 +377,7 @@ function ServerSectionComponent({
               }`}
             >
               <Activity className="h-4 w-4 mr-1.5" />
-              {ok ? "Online" : "Offline"}
+              {ok ? t('server.online') : t('server.offline')}
             </span>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 font-mono mt-1">
@@ -546,7 +548,7 @@ function ServerSectionComponent({
                   <TooltipContent>{showIcons ? "Hide Icons" : "Show Icons"}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {groupingMode === "ports" ? "Ports" : "Services"}
+              {groupingMode === "ports" ? t('server.ports') : t('server.services')}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,8 @@ export function SettingsModal({
   onClose,
   theme,
   onThemeChange,
+  language,
+  onLanguageChange,
   showIcons,
   onShowIconsChange,
   refreshInterval,
@@ -64,6 +67,7 @@ export function SettingsModal({
   onAutoxposeDisplayModeChange,
   onAutoxposeUrlStyleChange,
 }) {
+  const { t } = useTranslation();
   const [localTheme, setLocalTheme] = useState(theme);
   const [localShowIcons, setLocalShowIcons] = useState(showIcons);
   const [localRefreshInterval, setLocalRefreshInterval] = useState(refreshInterval || 30000);
@@ -155,13 +159,13 @@ export function SettingsModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+          <DialogTitle>{t('settings.title')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Theme</span>
+              <span className="text-sm font-medium">{t('settings.theme')}</span>
               <div className="flex gap-1">
                 {themeOptions.map((option) => {
                   const Icon = option.icon;
@@ -181,12 +185,48 @@ export function SettingsModal({
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="capitalize">
-                          {option.value}
+                          {option.value === 'system' ? t('settings.themeSystem') : option.value === 'light' ? t('settings.themeLight') : t('settings.themeDark')}
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   );
                 })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">{t('settings.language')}</span>
+              <div className="flex gap-1">
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={language === 'en' ? "default" : "ghost"}
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onLanguageChange('en')}
+                      >
+                        EN
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">English</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={language === 'zh' ? "default" : "ghost"}
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onLanguageChange('zh')}
+                      >
+                        {t('settings.languageChinese')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{t('settings.languageChinese')}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
 
@@ -197,7 +237,7 @@ export function SettingsModal({
                 ) : (
                   <EyeOff className="h-4 w-4 text-slate-400" />
                 )}
-                <span className="text-sm">Service Icons</span>
+                <span className="text-sm">{t('settings.serviceIcons')}</span>
               </div>
               <Switch
                 checked={localShowIcons}
@@ -206,7 +246,7 @@ export function SettingsModal({
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm">Auto-Refresh</span>
+              <span className="text-sm">{t('settings.autoRefresh')}</span>
               <div className="flex gap-1">
                 {REFRESH_INTERVALS.map((option) => {
                   const isSelected = localRefreshInterval === option.value;
@@ -245,7 +285,7 @@ export function SettingsModal({
                 {autoxposeStatus?.connected && (
                   <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                     <CheckCircle className="h-3 w-3" />
-                    connected
+                    {t('common.success')}
                   </span>
                 )}
               </div>
@@ -284,10 +324,10 @@ export function SettingsModal({
                       {autoxposeConnecting ? (
                         <>
                           <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                          Connecting...
+                          {t('common.loading')}
                         </>
                       ) : (
-                        "Connect"
+                        t('common.confirm')
                       )}
                     </Button>
                   </>
@@ -296,7 +336,7 @@ export function SettingsModal({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <AutoxposeLogo size={14} className="text-slate-400" />
-                        <span className="text-sm">Display</span>
+                        <span className="text-sm">{t('common.view')}</span>
                       </div>
                       <div className="flex gap-1">
                         <Tooltip>
@@ -329,7 +369,7 @@ export function SettingsModal({
                     </div>
                     {autoxposeDisplayMode === "url" && (
                       <div className="flex items-center justify-between pl-6">
-                        <span className="text-sm text-slate-500">Style</span>
+                        <span className="text-sm text-slate-500">{t('common.view')}</span>
                         <div className="flex gap-1">
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -367,7 +407,7 @@ export function SettingsModal({
                         className="w-full text-slate-500"
                         onClick={handleAutoxposeDisconnect}
                       >
-                        Disconnect
+                        {t('settings.apiKey.remove')}
                       </Button>
                     </div>
                   </>
@@ -381,7 +421,7 @@ export function SettingsModal({
               onClick={() => setShowAdvanced(!showAdvanced)}
               className="flex items-center justify-between w-full text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
             >
-              <span>Advanced Options</span>
+              <span>{t('common.settings')} - {t('settings.advanced.advanced')}</span>
               {showAdvanced ? (
                 <ChevronUp className="h-4 w-4" />
               ) : (
@@ -393,13 +433,13 @@ export function SettingsModal({
               <div className="mt-3 space-y-3 pl-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">Include UDP</span>
+                    <span className="text-sm">{t('settings.includeUdp')}</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3.5 w-3.5 text-slate-400 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-[200px]">
-                        Show UDP ports like DNS, DHCP, NTP
+                        {t('server.tooltips.includeUdp')}
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -411,13 +451,13 @@ export function SettingsModal({
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">Disable Cache</span>
+                    <span className="text-sm">{t('settings.advanced.disableCache')}</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3.5 w-3.5 text-slate-400 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-[200px]">
-                        Force fresh data (slower)
+                        {t('settings.advanced.forceFreshDataSlower')}
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -462,7 +502,7 @@ export function SettingsModal({
             </Tooltip>
           </div>
           <Button variant="outline" size="sm" onClick={onClose}>
-            Done
+            {t('common.close')}
           </Button>
         </DialogFooter>
       </DialogContent>

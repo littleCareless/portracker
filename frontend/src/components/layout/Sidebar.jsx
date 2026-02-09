@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Trash2,
   Plus,
@@ -64,7 +65,8 @@ const ServerCard = React.memo(function ServerCard({
   hostOverride,
   children,
 }) {
-  const name = server.server || "Unknown Server";
+  const { t } = useTranslation();
+  const name = server.server || t('sidebar.unknownServer');
   const portCount = server.data?.length || 0;
   const isUpdating = server.ok === null || server.loading;
   const systemInfo = server.systemInfo || {};
@@ -88,15 +90,15 @@ const ServerCard = React.memo(function ServerCard({
     }
   };
 
-  let typeLabel = "Services";
+  let typeLabel = t('sidebar.services');
   let typeIcon = <Settings className="h-3 w-3 mr-1" />;
   let typeCount = portCount;
   if (server.platform === "docker" || containerCount > 0) {
-    typeLabel = containerCount === 1 ? "Container" : "Containers";
+    typeLabel = containerCount === 1 ? t('sidebar.container') : t('sidebar.containers');
     typeIcon = <Container className="h-3 w-3 mr-1" />;
     typeCount = containerCount;
   } else if (vmCount > 0) {
-    typeLabel = "VMs";
+    typeLabel = t('sidebar.vms');
     typeIcon = <Server className="h-3 w-3 mr-1" />;
     typeCount = vmCount;
   }
@@ -121,46 +123,44 @@ const ServerCard = React.memo(function ServerCard({
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-mono">
             {getHostDisplay()}
-          </p>
+           </p>
         </div>
 
         <div className="hidden md:flex items-center space-x-2 opacity-40 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(server.id);
-            }}
-            className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
-            aria-label="Edit Server"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-          {server.id !== "local" && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(server);
-              }}
-              className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-500"
-              aria-label="Delete Server"
-            >
-              <Trash2 className="h-4 w-4" />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(server.id);
+                        }}
+                        className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
+                        aria-label={t('sidebar.editServerAria')}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      {server.id !== "local" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(server);
+                          }}
+                          className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-500"
+                          aria-label={t('sidebar.deleteServerAria')}
+                        >              <Trash2 className="h-4 w-4" />
             </button>
           )}
         </div>
 
         <div className="md:hidden">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                onClick={(e) => e.stopPropagation()}
-                className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
-                aria-label="More options"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
+                          <DropdownMenuTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
+                            aria-label={t('sidebar.moreOptions')}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>            <DropdownMenuContent
               onClick={(e) => e.stopPropagation()}
               align="end"
             >
@@ -184,20 +184,20 @@ const ServerCard = React.memo(function ServerCard({
       </div>
 
         
-      <div className="mt-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+        <div className="mt-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
         <div className="flex items-center space-x-3">
           <HardDrive className="h-3 w-3 mr-1" />
-          <span>{memory ? formatBytes(memory) : "N/A"}</span>
+          <span>{memory ? t('sidebar.memoryFormat', { value: memory }) : t('sidebar.na')}</span>
         </div>
         <div className="flex items-center space-x-3">
           <Clock className="h-3 w-3 mr-1" />
-          <span>{uptime ? formatUptime(uptime, true) : "N/A"}</span>
+          <span>{uptime ? t('sidebar.uptimeFormat', { value: formatUptime(uptime, true) }) : t('sidebar.na')}</span>
         </div>
       </div>
       <div className="mt-2 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
         <div className="flex items-center space-x-3">
           <Zap className="h-3 w-3 mr-1" />
-          <span>{portCount} ports</span>
+          <span>{portCount} {t('sidebar.ports')}</span>
         </div>
         <div className="flex items-center space-x-3">
           {typeIcon}
@@ -220,6 +220,7 @@ export function Sidebar({
   loading,
   hostOverride,
 }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState("list");
   const [form, setForm] = useState({
     label: "",
@@ -357,12 +358,12 @@ export function Sidebar({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.label.trim()) {
-      setError("Server name is required");
+      setError(t('sidebar.serverNameRequired'));
       return;
     }
     if (form.type === "peer" && !allowUnreachable && !urlValid) {
       setError(
-        "Please enter a valid, reachable URL or allow unreachable servers"
+        t('sidebar.validReachableUrlOrAllow')
       );
       return;
     }
@@ -527,15 +528,11 @@ export function Sidebar({
           <div className="p-6 flex-shrink-0">
             <div className="mb-6">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1 flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2 text-slate-600 dark:text-slate-400" />
-                Dashboard
-              </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Server Overview
-              </p>
+                <BarChart3 className="h-5 w-5 mr-2 text-slate-600 dark:text-slate-400" /> {t('layout.sidebar.dashboard')}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('layout.sidebar.serverOverview')}</p>
             </div>
             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider">
-              Servers ({servers.length})
+              {t('layout.sidebar.serversCount', { count: servers.length })}
             </h3>
           </div>
           <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-4">
@@ -548,35 +545,35 @@ export function Sidebar({
               className="w-full p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-600 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex flex-col items-center justify-center"
             >
               <Plus className="h-5 w-5 mb-1" />
-              <span className="text-sm font-medium">Add Server</span>
+              <span className="text-sm font-medium">{t('sidebar.addServer')}</span>
             </button>
           </div>
         </>
       ) : (
         <div className="p-6 flex-1 overflow-y-auto">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6">
-            {mode === "add" ? "Add New Server" : "Edit Server"}
+            {mode === "add" ? t('sidebar.addNewServer') : t('sidebar.editServer')}
           </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="label">Server Name *</Label>
+              <Label htmlFor="label">{t('sidebar.serverName')} *</Label>
               <Input
                 id="label"
                 value={form.label}
                 onChange={(e) => setForm({ ...form, label: e.target.value })}
-                placeholder="My Web Server"
+                placeholder={t('sidebar.myWebServer')}
                 className="mt-1.5"
                 disabled={submitting}
               />
             </div>
             <div>
-              <Label htmlFor="url">Server URL</Label>
+              <Label htmlFor="url">{t('sidebar.serverUrl')}</Label>
               <div className="relative">
                 <Input
                   id="server-url"
                   value={form.url}
                   onChange={(e) => setForm({ ...form, url: e.target.value })}
-                  placeholder="http://localhost:3000"
+                  placeholder={t('sidebar.httpLocalhost3000')}
                   className={`pr-10 ${
                     urlValid
                       ? "border-green-500 focus:border-green-500"
@@ -605,26 +602,26 @@ export function Sidebar({
             </div>
             {form.url && (
               <div>
-                <Label htmlFor="apiKey">API Key (Optional)</Label>
+                <Label htmlFor="apiKey">{t('sidebar.apiKeyOptional')}</Label>
                 <Input
                   id="apiKey"
                   type="password"
                   value={form.apiKey}
                   onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
-                  placeholder={form.hasExistingKey ? "••••••••••••••••" : "Enter API key if server has auth enabled"}
+                  placeholder={form.hasExistingKey ? t('sidebar.apiKeySaved') : t('sidebar.enterApiKeyIfAuthEnabled')}
                   className="mt-1.5"
                   disabled={submitting}
                 />
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   {form.hasExistingKey && !form.apiKey
-                    ? "API key is saved. Enter a new key to replace it."
-                    : "Required if the remote server has authentication enabled"}
-                </p>
+                    ? t('sidebar.apiKeySaved')
+                    : t('sidebar.requiredIfAuthEnabled')}
+                 </p>
               </div>
             )}
             {availableParents.length > 0 && (
               <div>
-                <Label htmlFor="parent">Parent Server (Optional)</Label>
+                <Label htmlFor="parent">{t('sidebar.parentServerOptional')}</Label>
                 <select
                   id="parent"
                   value={form.parentId}
@@ -634,7 +631,7 @@ export function Sidebar({
                   className="w-full mt-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm disabled:opacity-50"
                   disabled={submitting}
                 >
-                  <option value="">None (Top-level server)</option>
+                  <option value="">{t('sidebar.noneTopLevel')}</option>
                   {availableParents.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.label || s.server}
@@ -657,18 +654,18 @@ export function Sidebar({
                   htmlFor="allow-unreachable"
                   className="ml-2 text-sm font-normal text-slate-600 dark:text-slate-400"
                 >
-                  Save even if unreachable
+                  {t('sidebar.saveEvenIfUnreachable')}
                 </Label>
               </div>
             </div>
             {error && (
               <p className="mt-4 text-sm text-red-600 dark:text-red-500 bg-red-100 dark:bg-red-900/20 p-3 rounded-md">
                 {error}
-              </p>
+               </p>
             )}
             <div className="mt-6 flex flex-col sm:flex-row justify-end gap-2">
               <Button variant="outline" onClick={() => setMode("list")}>
-                Cancel
+                {t('sidebar.cancel')}
               </Button>
               <Button
                 onClick={handleSubmit}
@@ -682,12 +679,12 @@ export function Sidebar({
                 {submitting ? (
                   <div className="flex items-center">
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {mode === "add" ? "Adding..." : "Saving..."}
+                    {mode === "add" ? t('sidebar.adding') : t('sidebar.saving')}
                   </div>
                 ) : mode === "add" ? (
-                  "Add Server"
+                  t('sidebar.addServerBtn')
                 ) : (
-                  "Save Changes"
+                  t('sidebar.saveChanges')
                 )}
               </Button>
             </div>
@@ -700,20 +697,19 @@ export function Sidebar({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Server</AlertDialogTitle>
+            <AlertDialogTitle>{t('sidebar.deleteServer')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "
-              {serverToDelete?.label || serverToDelete?.server}"? This action
-              cannot be undone and will remove all associated data.
+              {t('sidebar.deleteServerConfirm')}
+              {serverToDelete?.label || serverToDelete?.server}? {t('sidebar.actionCannotBeUndone')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('sidebar.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-500"
             >
-              Delete Server
+              {t('sidebar.deleteServer')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

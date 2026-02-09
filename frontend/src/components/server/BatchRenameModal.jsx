@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -12,10 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2, RotateCcw } from "lucide-react";
 
-/**
- * Modal component for batch renaming multiple services
- * Allows users to set the same custom name for all selected ports
- */
 export function BatchRenameModal({
   isOpen,
   onClose,
@@ -23,6 +20,7 @@ export function BatchRenameModal({
   onSave,
   loading = false,
 }) {
+  const { t } = useTranslation();
   const [customName, setCustomName] = useState("");
   const [isDirty, setIsDirty] = useState(false);
 
@@ -67,27 +65,27 @@ export function BatchRenameModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Batch Rename Services</DialogTitle>
+          <DialogTitle>{t('batch.batchRenameTitle')}</DialogTitle>
           <DialogDescription>
-            Set a custom service name for {portCount} selected port{portCount !== 1 ? 's' : ''}.
+            {t('batch.batchRenameDesc', { count: portCount })}
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="batch-service-name">Service Name</Label>
+            <Label htmlFor="batch-service-name">{t('batch.serviceName')}</Label>
             <Input
               id="batch-service-name"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Enter custom service name..."
+              placeholder={t('batch.enterServiceName')}
               className="w-full"
               disabled={loading}
               autoFocus
             />
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              This name will be applied to all {portCount} selected services.
+              {t('batch.nameAppliedAll', { count: portCount })}
             </p>
           </div>
         </div>
@@ -101,7 +99,7 @@ export function BatchRenameModal({
                 disabled={loading}
                 className="flex-1"
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button 
                 onClick={handleSave}
@@ -111,10 +109,10 @@ export function BatchRenameModal({
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
+                    {t('common.saving')}
                   </>
                 ) : (
-                  `Rename ${portCount}`
+                  t('batch.renamePorts', { count: portCount })
                 )}
               </Button>
             </div>
@@ -126,7 +124,7 @@ export function BatchRenameModal({
               className="w-full"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
-              Reset All to Original
+              {t('batch.resetAll')}
             </Button>
           </div>
         </DialogFooter>

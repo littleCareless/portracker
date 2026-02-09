@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   Dialog,
@@ -36,6 +37,7 @@ import { AutoxposeNudge } from "./components/autoxpose";
 import { generatePortKey } from "./lib/utils/portUtils";
 import { formatUptime } from "@/lib/utils";
 import { useAuth } from "./contexts/AuthContext";
+import { useLanguage } from "./contexts/LanguageContext";
 import { buildAutoRefreshMessages } from "@/lib/autoRefreshMessages";
 
 const keyOf = (srvId, p) => generatePortKey(srvId, p);
@@ -60,6 +62,8 @@ const KONAMI_HINTS = ["↑", "Course input detected…", "gg, keyboard pilot."];
 
 export default function App() {
   const auth = useAuth();
+  const { t, i18n } = useTranslation();
+  const { changeLanguage, currentLanguage: language } = useLanguage();
   const { shouldShowButton: shouldShowWhatsNewButton, handleShow: handleShowWhatsNew, getModalProps: getWhatsNewModalProps } = useWhatsNew();
   
   const [groups, setGroups] = useState([]);
@@ -1888,8 +1892,9 @@ export default function App() {
     return buildAutoRefreshMessages({
       isTrueNAS,
       currentPort: appPort || "4999",
+      lang: language,
     });
-  }, [selectedServerData, appPort]);
+  }, [selectedServerData, appPort, language]);
 
   if (auth.loading) {
     return (
@@ -2167,12 +2172,10 @@ export default function App() {
                   <div className="text-center py-24 text-slate-500 dark:text-slate-400 flex flex-col items-center animate-in fade-in-0 duration-300">
                     <BarChart3 className="h-16 w-16 mb-4 text-slate-400" />
                     <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-300">
-                      Dashboard Home
+                      {t('sidebar.dashboardHome')}
                     </h2>
                     <p className="mt-2 max-w-md">
-                      Select a server from the sidebar to view its ports, system
-                      information, and more. Use the "Add Server" button to
-                      connect to new local or remote environments.
+                      {t('sidebar.dashboardHomeDesc')}
                     </p>
                   </div>
                 )
@@ -2180,8 +2183,7 @@ export default function App() {
 
               {!loading && noDataForSelection && (
                 <div className="text-center py-12 text-gray-500 dark:text-slate-400">
-                  No data available for the selected server. It might be offline
-                  or misconfigured.
+                  {t('sidebar.noDataAvailable')}
                 </div>
               )}
 
@@ -2271,6 +2273,8 @@ export default function App() {
         onClose={() => setSettingsModalOpen(false)}
         theme={themePreference}
         onThemeChange={handleThemeChange}
+        language={language}
+        onLanguageChange={changeLanguage}
         showIcons={showIcons}
         onShowIconsChange={setShowIcons}
         refreshInterval={refreshInterval}

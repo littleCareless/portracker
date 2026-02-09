@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './dialog';
 import { Button } from './button';
 import { Globe, Database, Sparkles, Shield, Layout, Server, HardDrive, Wrench, Package, Bandage, Star } from 'lucide-react';
@@ -7,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 const AUTOXPOSE_REPO = 'https://github.com/mostafa-wahied/autoxpose';
 
-const linkifyAutoxpose = (text) => {
+const linkifyAutoxpose = (text, t) => {
   if (!text.toLowerCase().includes('autoxpose')) return text;
   
   const parts = text.split(/(autoxpose)/i);
@@ -31,23 +32,23 @@ const hasAutoxpose = (item) => {
          item.description?.toLowerCase().includes('autoxpose');
 };
 
-const HighlightsSection = ({ highlights, onOpenSettings, onClose }) => {
+const HighlightsSection = ({ highlights, onOpenSettings, onClose, t }) => {
   if (!highlights?.length) return null;
   
   return (
     <div className="mb-6 p-4 rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800">
       <div className="flex items-center gap-2 mb-3">
         <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-        <h3 className="font-bold text-slate-900 dark:text-slate-100">Highlights</h3>
+        <h3 className="font-bold text-slate-900 dark:text-slate-100">{t('whatsNew.highlights')}</h3>
       </div>
       <ul className="space-y-2">
         {highlights.map((item, index) => (
           <li key={index} className="flex items-start gap-2">
             <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
             <div>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{linkifyAutoxpose(item.title)}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{linkifyAutoxpose(item.title, t)}</span>
               {item.description && (
-                <span className="text-slate-600 dark:text-slate-400"> - {linkifyAutoxpose(item.description)}</span>
+                <span className="text-slate-600 dark:text-slate-400"> - {linkifyAutoxpose(item.description, t)}</span>
               )}
               {hasAutoxpose(item) && (
                 <button
@@ -68,7 +69,7 @@ const HighlightsSection = ({ highlights, onOpenSettings, onClose }) => {
   );
 };
 
-const FeatureCard = ({ feature, index }) => {
+const FeatureCard = ({ feature, index, t }) => {
   const IconComponent = getFeatureIcon(feature);
   const hasDetails = feature.details?.length > 0;
   
@@ -123,20 +124,34 @@ const FeatureCard = ({ feature, index }) => {
   );
 };
 
-const CategorySection = ({ title, features, icon: Icon }) => (
-  <div className="space-y-3">
-    <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-      <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400 transition-all duration-300 ease-in-out hover:rotate-[15deg]" />
-      <h3 className="font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-    </div>
-    
+const CategorySection = ({ title, features, icon: Icon, t, index }) => {
+  const categoryIcons = {
+    'Security & Access Control': Shield,
+    'Dashboard & UX': Layout,
+    'Server Integrations': Server,
+    'Data & Infrastructure': HardDrive,
+    'Operations & Tooling': Wrench,
+    'Stability & Fixes': Bandage,
+    'Frontend Improvements': Globe,
+    'Backend Enhancements': Database,
+    'Other Updates': Package,
+  };
+  
+  return (
     <div className="space-y-3">
-      {features.map((feature, index) => (
-        <FeatureCard key={index} feature={feature} index={index} />
-      ))}
+      <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+        <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400 transition-all duration-300 ease-in-out hover:rotate-[15deg]" />
+        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
+      </div>
+      
+      <div className="space-y-3">
+        {features.map((feature, idx) => (
+          <FeatureCard key={idx} feature={feature} index={idx} t={t} />
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const VersionBadge = ({ version }) => (
   <div className="inline-flex items-center justify-center min-w-[3rem] h-8 px-2 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-semibold text-xs border border-indigo-200 dark:border-indigo-800">
@@ -144,180 +159,119 @@ const VersionBadge = ({ version }) => (
   </div>
 );
 
-const VersionSection = ({ versionData, index, onOpenSettings, onClose }) => (
-  <div 
-    className={cn(
-      "space-y-4 p-4 rounded-lg border bg-gradient-to-br transition-all duration-500",
-      "from-slate-50/50 to-slate-100/30 border-slate-200",
-      "dark:from-slate-800/30 dark:to-slate-900/50 dark:border-slate-700",
-      "animate-in fade-in-0 slide-in-from-left-4"
-    )}
-    style={{ animationDelay: `${index * 150}ms` }}
-  >
-    <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
-      <VersionBadge version={versionData.version} />
-      <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-        Version {versionData.version}
-      </h2>
+const VersionSection = ({ versionData, index, onOpenSettings, onClose, t }) => {
+  const categoryTitles = {
+    security: t('whatsNew.securityAndAccess'),
+    dashboard: t('whatsNew.dashboardAndUx'),
+    integrations: t('whatsNew.serverIntegrations'),
+    data: t('whatsNew.dataAndInfrastructure'),
+    tooling: t('whatsNew.operationsAndTooling'),
+    fixes: t('whatsNew.stabilityAndFixes'),
+    frontend: t('whatsNew.frontendImprovements'),
+    backend: t('whatsNew.backendEnhancements'),
+    misc: t('whatsNew.otherUpdates'),
+  };
+
+  const categoryIcons = {
+    security: Shield,
+    dashboard: Layout,
+    integrations: Server,
+    data: HardDrive,
+    tooling: Wrench,
+    fixes: Bandage,
+    frontend: Globe,
+    backend: Database,
+    misc: Package,
+  };
+  
+  return (
+    <div 
+      className={cn(
+        "space-y-4 p-4 rounded-lg border bg-gradient-to-br transition-all duration-500",
+        "from-slate-50/50 to-slate-100/30 border-slate-200",
+        "dark:from-slate-800/30 dark:to-slate-900/50 dark:border-slate-700",
+        "animate-in fade-in-0 slide-in-from-left-4"
+      )}
+      style={{ animationDelay: `${index * 150}ms` }}
+    >
+      <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
+        <VersionBadge version={versionData.version} />
+        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          {t('whatsNew.version', { version: versionData.version })}
+        </h2>
+      </div>
+
+      <HighlightsSection highlights={versionData.changes.highlights} onOpenSettings={onOpenSettings} onClose={onClose} t={t} />
+
+      <div className="space-y-4">
+        {Object.entries(categoryTitles).map(([key, title]) => {
+          if (!versionData.changes[key]?.length) return null;
+          const IconComponent = categoryIcons[key];
+          return (
+            <CategorySection
+              key={key}
+              title={title}
+              features={versionData.changes[key]}
+              icon={IconComponent}
+              t={t}
+              index={index}
+            />
+          );
+        })}
+      </div>
     </div>
+  );
+};
 
-    <HighlightsSection highlights={versionData.changes.highlights} onOpenSettings={onOpenSettings} onClose={onClose} />
+const FlatChangesDisplay = ({ changes, onOpenSettings, onClose, t }) => {
+  const categoryTitles = {
+    security: t('whatsNew.securityAndAccess'),
+    dashboard: t('whatsNew.dashboardAndUx'),
+    integrations: t('whatsNew.serverIntegrations'),
+    data: t('whatsNew.dataAndInfrastructure'),
+    tooling: t('whatsNew.operationsAndTooling'),
+    fixes: t('whatsNew.stabilityAndFixes'),
+    frontend: t('whatsNew.frontendImprovements'),
+    backend: t('whatsNew.backendEnhancements'),
+    misc: t('whatsNew.otherUpdates'),
+  };
 
-    <div className="space-y-4">
-      {versionData.changes.security?.length > 0 && (
-        <CategorySection
-          title="Security & Access Control"
-          features={versionData.changes.security}
-          icon={Shield}
-        />
-      )}
+  const categoryIcons = {
+    security: Shield,
+    dashboard: Layout,
+    integrations: Server,
+    data: HardDrive,
+    tooling: Wrench,
+    fixes: Bandage,
+    frontend: Globe,
+    backend: Database,
+    misc: Package,
+  };
+  
+  return (
+    <>
+      <HighlightsSection highlights={changes.highlights} onOpenSettings={onOpenSettings} onClose={onClose} t={t} />
 
-      {versionData.changes.dashboard?.length > 0 && (
-        <CategorySection
-          title="Dashboard & UX"
-          features={versionData.changes.dashboard}
-          icon={Layout}
-        />
-      )}
-
-      {versionData.changes.integrations?.length > 0 && (
-        <CategorySection
-          title="Server Integrations"
-          features={versionData.changes.integrations}
-          icon={Server}
-        />
-      )}
-
-      {versionData.changes.data?.length > 0 && (
-        <CategorySection
-          title="Data & Infrastructure"
-          features={versionData.changes.data}
-          icon={HardDrive}
-        />
-      )}
-
-      {versionData.changes.tooling?.length > 0 && (
-        <CategorySection
-          title="Operations & Tooling"
-          features={versionData.changes.tooling}
-          icon={Wrench}
-        />
-      )}
-
-      {versionData.changes.fixes?.length > 0 && (
-        <CategorySection
-          title="Stability & Fixes"
-          features={versionData.changes.fixes}
-          icon={Bandage}
-        />
-      )}
-
-      {versionData.changes.frontend?.length > 0 && (
-        <CategorySection
-          title="Frontend Improvements"
-          features={versionData.changes.frontend}
-          icon={Globe}
-        />
-      )}
-
-      {versionData.changes.backend?.length > 0 && (
-        <CategorySection
-          title="Backend Enhancements"
-          features={versionData.changes.backend}
-          icon={Database}
-        />
-      )}
-
-      {versionData.changes.misc?.length > 0 && (
-        <CategorySection
-          title="Other Updates"
-          features={versionData.changes.misc}
-          icon={Package}
-        />
-      )}
-    </div>
-  </div>
-);
-
-const FlatChangesDisplay = ({ changes, onOpenSettings, onClose }) => (
-  <>
-    <HighlightsSection highlights={changes.highlights} onOpenSettings={onOpenSettings} onClose={onClose} />
-
-    {changes.security?.length > 0 && (
-      <CategorySection
-        title="Security & Access Control"
-        features={changes.security}
-        icon={Shield}
-      />
-    )}
-
-    {changes.dashboard?.length > 0 && (
-      <CategorySection
-        title="Dashboard & UX"
-        features={changes.dashboard}
-        icon={Layout}
-      />
-    )}
-
-    {changes.integrations?.length > 0 && (
-      <CategorySection
-        title="Server Integrations"
-        features={changes.integrations}
-        icon={Server}
-      />
-    )}
-
-    {changes.data?.length > 0 && (
-      <CategorySection
-        title="Data & Infrastructure"
-        features={changes.data}
-        icon={HardDrive}
-      />
-    )}
-
-    {changes.tooling?.length > 0 && (
-      <CategorySection
-        title="Operations & Tooling"
-        features={changes.tooling}
-        icon={Wrench}
-      />
-    )}
-
-    {changes.fixes?.length > 0 && (
-      <CategorySection
-        title="Stability & Fixes"
-        features={changes.fixes}
-        icon={Bandage}
-      />
-    )}
-
-    {changes.frontend?.length > 0 && (
-      <CategorySection
-        title="Frontend Improvements"
-        features={changes.frontend}
-        icon={Globe}
-      />
-    )}
-
-    {changes.backend?.length > 0 && (
-      <CategorySection
-        title="Backend Enhancements"
-        features={changes.backend}
-        icon={Database}
-      />
-    )}
-
-    {changes.misc?.length > 0 && (
-      <CategorySection
-        title="Other Updates"
-        features={changes.misc}
-        icon={Package}
-      />
-    )}
-  </>
-);
+      {Object.entries(categoryTitles).map(([key, title]) => {
+        if (!changes[key]?.length) return null;
+        const IconComponent = categoryIcons[key];
+        return (
+          <CategorySection
+            key={key}
+            title={title}
+            features={changes[key]}
+            icon={IconComponent}
+            t={t}
+            index={0}
+          />
+        );
+      })}
+    </>
+  );
+};
 
 export function WhatsNewModal({ isOpen, onClose, onDismiss, version, changes, groupedChanges, onOpenSettings }) {
+  const { t } = useTranslation();
   const hasGroupedData = groupedChanges?.length > 0;
 
   return (
@@ -330,10 +284,10 @@ export function WhatsNewModal({ isOpen, onClose, onDismiss, version, changes, gr
             </div>
             <div>
               <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                What's New in portracker {version}
+                {t('whatsNew.whatsNewIn', { version })}
               </DialogTitle>
               <DialogDescription className="text-slate-600 dark:text-slate-400 mt-1">
-                Discover the latest features and improvements
+                {t('whatsNew.discoverLatestFeatures')}
               </DialogDescription>
             </div>
           </div>
@@ -343,10 +297,10 @@ export function WhatsNewModal({ isOpen, onClose, onDismiss, version, changes, gr
           <div className="space-y-6">
             {hasGroupedData ? (
               groupedChanges.map((versionData, index) => (
-                <VersionSection key={versionData.version} versionData={versionData} index={index} onOpenSettings={onOpenSettings} onClose={onClose} />
+                <VersionSection key={versionData.version} versionData={versionData} index={index} onOpenSettings={onOpenSettings} onClose={onClose} t={t} />
               ))
             ) : (
-              <FlatChangesDisplay changes={changes} onOpenSettings={onOpenSettings} onClose={onClose} />
+              <FlatChangesDisplay changes={changes} onOpenSettings={onOpenSettings} onClose={onClose} t={t} />
             )}
           </div>
         </div>
@@ -362,14 +316,14 @@ export function WhatsNewModal({ isOpen, onClose, onDismiss, version, changes, gr
             }}
             className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
           >
-            Don't show again
+            {t('whatsNew.dontShowAgain')}
           </Button>
           
           <Button
             onClick={onClose}
             className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-500 dark:hover:bg-indigo-600 transition-colors duration-200"
           >
-            Get Started
+            {t('whatsNew.getStarted')}
           </Button>
         </div>
       </DialogContent>

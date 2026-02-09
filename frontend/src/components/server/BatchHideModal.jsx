@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -10,10 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
-/**
- * Modal component for batch hiding/showing multiple ports
- * Allows users to hide or show all selected ports at once
- */
 export function BatchHideModal({
   isOpen,
   onClose,
@@ -22,6 +19,7 @@ export function BatchHideModal({
   loading = false,
   action = "hide",
 }) {
+  const { t } = useTranslation();
   const handleConfirm = () => {
     onConfirm({
       selectedPorts: Array.from(selectedPorts),
@@ -31,10 +29,6 @@ export function BatchHideModal({
 
   const portCount = selectedPorts?.size || 0;
   const isHiding = action === "hide";
-  const actionText = isHiding ? "Hide" : "Show";
-  const actionDescription = isHiding 
-    ? "Hidden ports will no longer appear in the main view but can be accessed through the hidden ports drawer."
-    : "These ports will be restored to the main view.";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -42,16 +36,16 @@ export function BatchHideModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isHiding ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            {actionText} {portCount} Port{portCount !== 1 ? 's' : ''}
+            {isHiding ? t('batch.hidePortsTitle', { count: portCount }) : t('batch.showPortsTitle', { count: portCount })}
           </DialogTitle>
           <DialogDescription>
-            {actionDescription}
+            {isHiding ? t('batch.hideDescription') : t('batch.showDescription')}
           </DialogDescription>
         </DialogHeader>
         
         <div className="py-4">
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Are you sure you want to {action} {portCount} selected port{portCount !== 1 ? 's' : ''}?
+            {t('batch.confirmHide', { count: portCount })}
           </p>
         </div>
 
@@ -61,7 +55,7 @@ export function BatchHideModal({
             onClick={onClose}
             disabled={loading}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button 
             onClick={handleConfirm}
@@ -72,12 +66,12 @@ export function BatchHideModal({
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {actionText}ing...
+                {t('common.processing')}
               </>
             ) : (
               <>
                 {isHiding ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                {actionText} {portCount} Port{portCount !== 1 ? 's' : ''}
+                {isHiding ? t('batch.hiding') : t('batch.showing')}
               </>
             )}
           </Button>

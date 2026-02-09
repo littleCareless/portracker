@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { KeyRound, ShieldCheck } from 'lucide-react';
 
 export function SetupWizard() {
+  const { t } = useTranslation();
   const { setup } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -19,17 +21,17 @@ export function SetupWizard() {
     setError('');
 
     if (username.length < 3) {
-      setError('Username must be at least 3 characters');
+      setError(t('auth.usernameMinLength'));
       return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(t('auth.passwordMinLength'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.passwordsDoNotMatch'));
       return;
     }
 
@@ -55,10 +57,10 @@ export function SetupWizard() {
               </div>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Welcome to portracker
+              {t('auth.welcomeToPortracker')}
             </h1>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 text-center">
-              Create your admin account to secure your instance
+              {t('auth.createAdminAccountDesc')}
             </p>
           </div>
 
@@ -67,10 +69,10 @@ export function SetupWizard() {
               <KeyRound className="w-5 h-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold text-indigo-900 dark:text-indigo-100 text-sm">
-                  First-Time Setup
+                  {t('auth.firstTimeSetup')}
                 </h3>
                 <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
-                  Choose a strong password. This account will have full access to your portracker instance.
+                  {t('auth.chooseStrongPassword')}
                 </p>
               </div>
             </div>
@@ -78,13 +80,13 @@ export function SetupWizard() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-slate-700 dark:text-slate-300">Admin Username</Label>
+              <Label htmlFor="username" className="text-slate-700 dark:text-slate-300">{t('auth.adminUsername')}</Label>
               <Input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Admin username"
+                placeholder={t('auth.adminUsernamePlaceholder')}
                 required
                 autoComplete="username"
                 disabled={loading}
@@ -93,22 +95,22 @@ export function SetupWizard() {
               {username && (
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {username.length >= 3 ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Valid username</span>
+                    <span className="text-green-600 dark:text-green-400">✓ {t('auth.validUsername')}</span>
                   ) : (
-                    <span>At least 3 characters required</span>
+                    <span>{t('auth.usernameMinLength')}</span>
                   )}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">Password</Label>
+              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">{t('auth.password')}</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
+                placeholder={t('auth.passwordPlaceholder')}
                 required
                 autoComplete="new-password"
                 disabled={loading}
@@ -117,22 +119,22 @@ export function SetupWizard() {
               {password && (
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {password.length >= 8 ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Valid password</span>
+                    <span className="text-green-600 dark:text-green-400">✓ {t('auth.validPassword')}</span>
                   ) : (
-                    <span>At least 8 characters required</span>
+                    <span>{t('auth.passwordMinLength')}</span>
                   )}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-slate-700 dark:text-slate-300">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-slate-700 dark:text-slate-300">{t('auth.confirmPassword')}</Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
+                placeholder={t('auth.confirmPasswordPlaceholder')}
                 required
                 autoComplete="new-password"
                 disabled={loading}
@@ -141,9 +143,9 @@ export function SetupWizard() {
               {confirmPassword && (
                 <p className="text-xs">
                   {password === confirmPassword ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Passwords match</span>
+                    <span className="text-green-600 dark:text-green-400">✓ {t('auth.passwordsMatch')}</span>
                   ) : (
-                    <span className="text-red-600 dark:text-red-400">✗ Passwords do not match</span>
+                    <span className="text-red-600 dark:text-red-400">✗ {t('auth.passwordsDoNotMatch')}</span>
                   )}
                 </p>
               )}
@@ -162,7 +164,7 @@ export function SetupWizard() {
               disabled={loading || username.length < 3 || password.length < 8 || password !== confirmPassword}
               className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white"
             >
-              {loading ? 'Creating Account...' : 'Create Admin Account'}
+              {loading ? t('auth.creatingAccount') : t('auth.createAdminAccount')}
             </Button>
           </form>
 

@@ -12,6 +12,7 @@ const db = require('../db');
 const { Logger } = require('../lib/logger');
 const { isAuthEnabled } = require('../middleware/auth');
 const recoveryManager = require('../lib/recovery-manager');
+const { getErrorMessage } = require('../lib/i18n');
 
 const router = express.Router();
 const logger = new Logger('AuthRoutes', { debug: process.env.DEBUG === 'true' });
@@ -49,28 +50,28 @@ router.get('/status', (req, res) => {
     });
   } catch (error) {
     logger.error('Error checking auth status:', error.message);
-    res.status(500).json({ error: 'Failed to check authentication status' });
+    res.status(500).json({ error: getErrorMessage('checkAuthStatusFailed') });
   }
 });
 
 router.post('/setup', async (req, res) => {
   try {
     if (!isAuthEnabled()) {
-      return res.status(400).json({ error: 'Authentication is not enabled' });
+      return res.status(400).json({ error: getErrorMessage('authDisabled') });
     }
 
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      return res.status(400).json({ error: getErrorMessage('usernamePasswordRequired') });
     }
 
     if (typeof username !== 'string' || username.trim().length < 3) {
-      return res.status(400).json({ error: 'Username must be at least 3 characters' });
+      return res.status(400).json({ error: getErrorMessage('usernameMinLength') });
     }
 
     if (typeof password !== 'string' || password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return res.status(400).json({ error: getErrorMessage('passwordMinLength') });
     }
 
     let userCount;
@@ -78,11 +79,11 @@ router.post('/setup', async (req, res) => {
       userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
     } catch (dbError) {
       logger.error('Users table does not exist:', dbError.message);
-      return res.status(500).json({ error: 'Database not initialized' });
+      return res.status(500).json({ error: getErrorMessage('databaseNotInitialized') });
     }
 
     if (userCount.count > 0) {
-      return res.status(400).json({ error: 'Setup already completed' });
+      return res.status(400).json({ error: getErrorMessage('setupAlreadyCompleted') });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -112,27 +113,27 @@ router.post('/setup', async (req, res) => {
 
         res.json({
           success: true,
-          message: 'Setup completed successfully',
+          message: getErrorMessage('setupCompleted'),
           username: username.trim()
         });
       });
     });
   } catch (error) {
     logger.error('Error during setup:', error.message);
-    res.status(500).json({ error: 'Setup failed' });
+    res.status(500).json({ error: getErrorMessage('setupFailed') });
   }
 });
 
 router.post('/login', async (req, res) => {
   try {
     if (!isAuthEnabled()) {
-      return res.status(400).json({ error: 'Authentication is not enabled' });
+      return res.status(400).json({ error: getErrorMessage('authDisabled') });
     }
 
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      return res.status(400).json({ error: getErrorMessage('usernamePasswordRequired') });
     }
 
     const trimmedUsername = typeof username === 'string' ? username.trim() : username;
@@ -145,11 +146,11 @@ router.post('/login', async (req, res) => {
         user = db.prepare('SELECT * FROM users LIMIT 1').get();
       } catch (dbError) {
         logger.error('Database error during recovery:', dbError.message);
-        return res.status(500).json({ error: 'Recovery failed' });
+        return res.status(500).json({ error: getErrorMessage('recoveryFailed') });
       }
 
       if (!user) {
-        return res.status(400).json({ error: 'No users found in database' });
+        return res.status(400).json({ error: getErrorMessage('noUsersFound') });
       }
 
       recoveryManager.markAsUsed();
@@ -157,7 +158,7 @@ router.post('/login', async (req, res) => {
       req.session.regenerate((err) => {
         if (err) {
           logger.error('Session regeneration failed:', err.message);
-          return res.status(500).json({ error: 'Recovery failed' });
+          return res.status(500).json({ error: getErrorMessage('recoveryFailed') });
         }
 
         req.session.userId = user.id;
@@ -167,7 +168,7 @@ router.post('/login', async (req, res) => {
         req.session.save((saveErr) => {
           if (saveErr) {
             logger.error('Session save failed:', saveErr.message);
-            return res.status(500).json({ error: 'Recovery failed' });
+            return res.status(500).json({ error: getErrorMessage('recoveryFailed') });
           }
 
           logger.info(`Recovery key used for user: ${user.username}`);
@@ -187,7 +188,7 @@ router.post('/login', async (req, res) => {
       user = db.prepare('SELECT * FROM users WHERE username = ?').get(trimmedUsername);
     } catch (dbError) {
       logger.error('Database error during login:', dbError.message);
-      return res.status(500).json({ error: 'Login failed' });
+      return res.status(500).json({ error: getErrorMessage('loginFailed') });
     }
 
     const hashToCompare = user ? user.password_hash : '$2a$10$AAAAAAAAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
@@ -195,7 +196,7 @@ router.post('/login', async (req, res) => {
 
     if (!user || !isValid) {
       logger.debug(`Failed login attempt for user: ${trimmedUsername}`);
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: getErrorMessage('invalidCredentials') });
     }
 
     db.prepare('UPDATE users SET last_login = ? WHERE id = ?').run(Date.now(), user.id);
@@ -203,7 +204,7 @@ router.post('/login', async (req, res) => {
     req.session.regenerate((err) => {
       if (err) {
         logger.error('Session regeneration failed:', err.message);
-        return res.status(500).json({ error: 'Login failed' });
+        return res.status(500).json({ error: getErrorMessage('loginFailed') });
       }
 
       req.session.userId = user.id;
@@ -212,7 +213,7 @@ router.post('/login', async (req, res) => {
       req.session.save((saveErr) => {
         if (saveErr) {
           logger.error('Session save failed:', saveErr.message);
-          return res.status(500).json({ error: 'Login failed' });
+          return res.status(500).json({ error: getErrorMessage('loginFailed') });
         }
 
         logger.info(`User logged in: ${user.username}`);
@@ -225,7 +226,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error during login:', error.message);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: getErrorMessage('loginFailed') });
   }
 });
 
@@ -235,41 +236,41 @@ router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       logger.error('Error destroying session:', err.message);
-      return res.status(500).json({ error: 'Logout failed' });
+      return res.status(500).json({ error: getErrorMessage('logoutFailed') });
     }
 
     if (username) {
       logger.info(`User logged out: ${username}`);
     }
 
-    res.json({ success: true, message: 'Logged out successfully' });
+    res.json({ success: true, message: getErrorMessage('loggedOut') });
   });
 });
 
 router.post('/change-password', async (req, res) => {
   try {
     if (!isAuthEnabled()) {
-      return res.status(400).json({ error: 'Authentication is not enabled' });
+      return res.status(400).json({ error: getErrorMessage('authDisabled') });
     }
 
     if (!req.session || !req.session.userId) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: getErrorMessage('notAuthenticated') });
     }
 
     const { currentPassword, newPassword } = req.body;
 
     if (!newPassword) {
-      return res.status(400).json({ error: 'New password is required' });
+      return res.status(400).json({ error: getErrorMessage('newPasswordRequired') });
     }
 
     if (typeof newPassword !== 'string' || newPassword.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return res.status(400).json({ error: getErrorMessage('passwordMinLength') });
     }
 
     const requirePasswordChange = req.session.requirePasswordChange;
 
     if (!requirePasswordChange && !currentPassword) {
-      return res.status(400).json({ error: 'Current password is required' });
+      return res.status(400).json({ error: getErrorMessage('currentPasswordRequired') });
     }
 
     let user;
@@ -277,17 +278,17 @@ router.post('/change-password', async (req, res) => {
       user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
     } catch (dbError) {
       logger.error('Database error during password change:', dbError.message);
-      return res.status(500).json({ error: 'Password change failed' });
+      return res.status(500).json({ error: getErrorMessage('passwordChangeFailed') });
     }
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: getErrorMessage('userNotFound') });
     }
 
     if (!requirePasswordChange) {
       const isValidCurrent = await bcrypt.compare(currentPassword, user.password_hash);
       if (!isValidCurrent) {
-        return res.status(401).json({ error: 'Current password is incorrect' });
+        return res.status(401).json({ error: getErrorMessage('currentPasswordIncorrect') });
       }
     }
 
@@ -300,19 +301,19 @@ router.post('/change-password', async (req, res) => {
     req.session.save((saveErr) => {
       if (saveErr) {
         logger.error('Session save failed:', saveErr.message);
-        return res.status(500).json({ error: 'Password change failed' });
+        return res.status(500).json({ error: getErrorMessage('passwordChangeFailed') });
       }
 
       logger.info(`Password changed for user: ${user.username}`);
 
       res.json({
         success: true,
-        message: 'Password changed successfully'
+        message: getErrorMessage('passwordChanged')
       });
     });
   } catch (error) {
     logger.error('Error during password change:', error.message);
-    res.status(500).json({ error: 'Password change failed' });
+    res.status(500).json({ error: getErrorMessage('passwordChangeFailed') });
   }
 });
 

@@ -3,6 +3,7 @@ const { Logger } = require('../lib/logger');
 const autoxposeClient = require('../lib/autoxpose-client');
 const settingsManager = require('../lib/settings-manager');
 const { isAuthEnabled } = require('../middleware/auth');
+const { getErrorMessage } = require('../lib/i18n');
 
 const router = express.Router();
 const logger = new Logger('AutoxposeRoutes', { debug: process.env.DEBUG === 'true' });
@@ -22,7 +23,7 @@ router.get('/status', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error fetching autoxpose status:', error.message);
-    res.status(500).json({ error: 'Failed to fetch status' });
+    res.status(500).json({ error: getErrorMessage('fetchAutoxposeStatusFailed') });
   }
 });
 
@@ -31,7 +32,7 @@ router.post('/connect', async (req, res) => {
     const { url } = req.body;
     
     if (!url) {
-      return res.status(400).json({ error: 'URL is required' });
+      return res.status(400).json({ error: getErrorMessage('urlRequired') });
     }
 
     const cleanUrl = url.replace(/\/+$/, '');
@@ -52,7 +53,7 @@ router.post('/connect', async (req, res) => {
     res.json(result);
   } catch (error) {
     logger.error('Error connecting to autoxpose:', error.message);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: getErrorMessage('autoxposeConnectFailed') });
   }
 });
 
@@ -70,7 +71,7 @@ router.post('/disconnect', (req, res) => {
     res.json({ success: true });
   } catch (error) {
     logger.error('Error disconnecting autoxpose:', error.message);
-    res.status(500).json({ error: 'Failed to disconnect' });
+    res.status(500).json({ error: getErrorMessage('autoxposeDisconnectFailed') });
   }
 });
 
@@ -79,7 +80,7 @@ router.put('/display-mode', (req, res) => {
     const { mode } = req.body;
     
     if (!mode || !['url', 'badge'].includes(mode)) {
-      return res.status(400).json({ error: 'Invalid display mode. Use "url" or "badge".' });
+      return res.status(400).json({ error: getErrorMessage('invalidDisplayMode') });
     }
 
     const userId = isAuthEnabled() && req.session?.userId ? req.session.userId : null;
@@ -89,7 +90,7 @@ router.put('/display-mode', (req, res) => {
     res.json({ success: true, displayMode: mode });
   } catch (error) {
     logger.error('Error updating display mode:', error.message);
-    res.status(500).json({ error: 'Failed to update display mode' });
+    res.status(500).json({ error: getErrorMessage('updateDisplayModeFailed') });
   }
 });
 
@@ -98,7 +99,7 @@ router.put('/url-style', (req, res) => {
     const { style } = req.body;
     
     if (!style || !['full', 'compact'].includes(style)) {
-      return res.status(400).json({ error: 'Invalid URL style. Use "full" or "compact".' });
+      return res.status(400).json({ error: getErrorMessage('invalidUrlStyle') });
     }
 
     const userId = isAuthEnabled() && req.session?.userId ? req.session.userId : null;
@@ -108,7 +109,7 @@ router.put('/url-style', (req, res) => {
     res.json({ success: true, urlStyle: style });
   } catch (error) {
     logger.error('Error updating URL style:', error.message);
-    res.status(500).json({ error: 'Failed to update URL style' });
+    res.status(500).json({ error: getErrorMessage('updateUrlStyleFailed') });
   }
 });
 
@@ -118,7 +119,7 @@ router.get('/services', async (req, res) => {
     res.json({ services });
   } catch (error) {
     logger.error('Error fetching autoxpose services:', error.message);
-    res.status(500).json({ error: 'Failed to fetch services' });
+    res.status(500).json({ error: getErrorMessage('fetchAutoxposeServicesFailed') });
   }
 });
 
@@ -128,7 +129,7 @@ router.get('/domain', async (req, res) => {
     res.json({ domain });
   } catch (error) {
     logger.error('Error fetching autoxpose domain:', error.message);
-    res.status(500).json({ error: 'Failed to fetch domain' });
+    res.status(500).json({ error: getErrorMessage('fetchAutoxposeDomainFailed') });
   }
 });
 

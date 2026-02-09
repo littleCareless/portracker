@@ -1,11 +1,8 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Edit3, EyeOff, StickyNote, X, CheckSquare } from "lucide-react";
 
-/**
- * Floating action bar for batch operations on selected ports
- * Appears at bottom of screen when ports are selected
- */
 export function BatchOperationsBar({
   selectedCount,
   onBatchRename,
@@ -16,6 +13,7 @@ export function BatchOperationsBar({
   showSelectAll = false,
   loading = false,
 }) {
+  const { t } = useTranslation();
   if (selectedCount === 0) return null;
 
   return (
@@ -23,7 +21,7 @@ export function BatchOperationsBar({
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg px-4 py-3 flex items-center space-x-2">
         <div className="flex items-center space-x-3">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            {selectedCount} port{selectedCount !== 1 ? 's' : ''} selected
+            {t('common.portsSelected', { count: selectedCount })}
           </span>
           
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
@@ -38,7 +36,7 @@ export function BatchOperationsBar({
                 className="h-8 px-2"
               >
                 <CheckSquare className="h-4 w-4 mr-1" />
-                All
+                {t('common.all')}
               </Button>
             )}
             
@@ -50,7 +48,7 @@ export function BatchOperationsBar({
               className="h-8 px-2"
             >
               <Edit3 className="h-4 w-4 mr-1" />
-              Rename
+              {t('common.rename')}
             </Button>
             
             <Button
@@ -61,7 +59,7 @@ export function BatchOperationsBar({
               className="h-8 px-2"
             >
               <EyeOff className="h-4 w-4 mr-1" />
-              Hide
+              {t('common.hide')}
             </Button>
             
             <Button
@@ -72,7 +70,7 @@ export function BatchOperationsBar({
               className="h-8 px-2"
             >
               <StickyNote className="h-4 w-4 mr-1" />
-              Note
+              {t('common.note')}
             </Button>
             
             <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />

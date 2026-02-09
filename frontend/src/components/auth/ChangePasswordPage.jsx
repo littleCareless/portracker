@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +8,7 @@ import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function ChangePasswordPage() {
+  const { t } = useTranslation();
   const { changePassword } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -18,12 +20,12 @@ export function ChangePasswordPage() {
     setError('');
 
     if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(t('auth.passwordMinLength'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.passwordsDoNotMatch'));
       return;
     }
 
@@ -49,29 +51,29 @@ export function ChangePasswordPage() {
               </div>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-              Password Change Required
+              {t('auth.changePassword')}
             </h1>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Set a new secure password to continue
+              {t('auth.changePasswordDesc')}
             </p>
           </div>
 
           <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 mb-6">
             <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-amber-800 dark:text-amber-200">
-              Recovery mode was used. You must set a new password before accessing the application.
+              {t('auth.recoveryModeMessage')}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
+              <Label htmlFor="newPassword">{t('auth.newPassword')}</Label>
               <Input
                 id="newPassword"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="At least 8 characters"
+                placeholder={t('auth.min8Chars')}
                 required
                 autoComplete="new-password"
                 disabled={loading}
@@ -80,22 +82,22 @@ export function ChangePasswordPage() {
               {newPassword && (
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {newPassword.length >= 8 ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Valid password</span>
+                    <span className="text-green-600 dark:text-green-400">✓ {t('auth.validPassword')}</span>
                   ) : (
-                    <span>At least 8 characters required</span>
+                    <span>{t('auth.passwordMinLength')}</span>
                   )}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">{t('auth.confirmNewPassword')}</Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter new password"
+                placeholder={t('auth.confirmNewPasswordPlaceholder')}
                 required
                 autoComplete="new-password"
                 disabled={loading}
@@ -103,9 +105,9 @@ export function ChangePasswordPage() {
               {confirmPassword && (
                 <p className="text-xs">
                   {newPassword === confirmPassword ? (
-                    <span className="text-green-600 dark:text-green-400">✓ Passwords match</span>
+                    <span className="text-green-600 dark:text-green-400">✓ {t('auth.passwordsMatch')}</span>
                   ) : (
-                    <span className="text-red-600 dark:text-red-400">✗ Passwords do not match</span>
+                    <span className="text-red-600 dark:text-red-400">✗ {t('auth.passwordsDoNotMatch')}</span>
                   )}
                 </p>
               )}
@@ -122,7 +124,7 @@ export function ChangePasswordPage() {
               disabled={loading || newPassword.length < 8 || newPassword !== confirmPassword}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
             >
-              {loading ? 'Changing Password...' : 'Set New Password'}
+              {loading ? t('auth.changingPassword') : t('auth.setNewPassword')}
             </Button>
           </form>
         </div>

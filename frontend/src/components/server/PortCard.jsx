@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ExternalLink, Lock, Tag } from "lucide-react";
 import {
   Tooltip,
@@ -37,8 +38,8 @@ const renderHighlightedText = (content) => {
   );
 };
 
-const getDisplayServiceName = (port) => {
-  return port.customServiceName || port.owner || "Unknown Service";
+const getDisplayServiceName = (port, t) => {
+  return port.customServiceName || port.owner || t('server.unknownService');
 };
 
 function PortCardComponent({
@@ -64,6 +65,7 @@ function PortCardComponent({
   autoxposeDisplayMode = "url",
   autoxposeUrlStyle = "compact",
 }) {
+  const { t } = useTranslation();
   const [protocol, setProtocol] = useState("http");
   const [showDetails, setShowDetails] = useState(false);
   const searchMatches = getSearchMatches(port, searchTerm);
@@ -149,7 +151,7 @@ function PortCardComponent({
                 )}
                 </TooltipTrigger>
                 {port.internal ? (
-                  <TooltipContent>Internal only</TooltipContent>
+                  <TooltipContent>{t('server.internalOnly')}</TooltipContent>
                 ) : (
                   !port.internal && port.target && (
                     <TooltipContent>

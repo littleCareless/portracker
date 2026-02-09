@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SetupWizard } from './SetupWizard';
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { authEnabled, setupRequired, login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -51,22 +53,22 @@ export function LoginPage() {
               <Logo className="w-20 h-20 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-300 ease-in-out group-hover:rotate-[30deg]" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              portracker
+              {t('app.title')}
             </h1>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Sign in to continue
+              {t('auth.signInTitle')}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-slate-700 dark:text-slate-300">Username</Label>
+              <Label htmlFor="username" className="text-slate-700 dark:text-slate-300">{t('auth.username')}</Label>
               <Input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                placeholder={t('auth.usernamePlaceholder')}
                 required
                 autoComplete="username"
                 disabled={loading}
@@ -75,14 +77,14 @@ export function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">Password</Label>
+              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">{t('auth.password')}</Label>
               <Input
                 ref={passwordInputRef}
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder={t('auth.passwordPlaceholder')}
                 required
                 autoComplete="current-password"
                 disabled={loading}
@@ -103,7 +105,7 @@ export function LoginPage() {
               disabled={loading || !username || !password}
               className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? t('auth.loggingIn') : t('auth.login')}
             </Button>
           </form>
 

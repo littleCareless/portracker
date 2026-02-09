@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -12,10 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2, RotateCcw } from "lucide-react";
 
-/**
- * Modal component for renaming service names
- * Allows users to set custom names and reset to original names
- */
 export function ServiceRenameModal({
   isOpen,
   onClose,
@@ -25,6 +22,7 @@ export function ServiceRenameModal({
   onSave,
   loading = false,
 }) {
+  const { t } = useTranslation();
   const [customName, setCustomName] = useState("");
   const [isDirty, setIsDirty] = useState(false);
 
@@ -84,7 +82,7 @@ export function ServiceRenameModal({
 
   if (!port) return null;
 
-  const displayedServiceName = port.customServiceName || port.owner || "Unknown Service";
+  const displayedServiceName = port.customServiceName || port.owner || t('server.unknownService');
   const hasCustomName = !!port.customServiceName;
   const canReset = hasCustomName;
   const canSave = isDirty && customName.trim() && customName.trim() !== displayedServiceName;
@@ -93,28 +91,28 @@ export function ServiceRenameModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Rename Service</DialogTitle>
+          <DialogTitle>{t('server.renameService')}</DialogTitle>
           <DialogDescription>
-            Customize the display name for this service on port {port.host_port}.
+            {t('server.renameServiceDesc', { port: port.host_port })}
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="service-name">Service Name</Label>
+            <Label htmlFor="service-name">{t('batch.serviceName')}</Label>
             <Input
               id="service-name"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Enter custom service name..."
+              placeholder={t('batch.enterServiceName')}
               className="w-full"
               disabled={loading}
               autoFocus
             />
             {hasCustomName && (
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Original: {port.originalServiceName || port.owner}
+                {t('server.originalName')}: {port.originalServiceName || port.owner}
               </p>
             )}
           </div>
@@ -127,7 +125,7 @@ export function ServiceRenameModal({
               onClick={onClose}
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleSave}
@@ -137,10 +135,10 @@ export function ServiceRenameModal({
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
+                  {t('common.saving')}
                 </>
               ) : (
-                "Save"
+                t('common.save')
               )}
             </Button>
           </div>
@@ -153,7 +151,7 @@ export function ServiceRenameModal({
               className="sm:order-0 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
-              Reset to Original
+              {t('server.resetToOriginal')}
             </Button>
           )}
         </DialogFooter>
