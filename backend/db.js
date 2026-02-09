@@ -518,6 +518,62 @@ if (!tableExists) {
       logger.info('Schema migration: users table created successfully');
     }
 
+    // Router configuration tables
+    const routerConfigTableExists = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='router_config'"
+      )
+      .get();
+    
+    if (!routerConfigTableExists) {
+      logger.info('Schema migration: Creating "router_config" table for router connections');
+      db.exec(`
+        CREATE TABLE router_config (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          router_url TEXT NOT NULL,
+          auth_type TEXT DEFAULT 'basic',
+          username TEXT,
+          encrypted_password TEXT,
+          encryption_iv TEXT,
+          encryption_tag TEXT,
+          last_sync_at DATETIME,
+          sync_enabled INTEGER DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      logger.info('Schema migration: router_config table created successfully');
+    }
+
+    const portForwardingsTableExists = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='port_forwardings'"
+      )
+      .get();
+    
+    if (!portForwardingsTableExists) {
+      logger.info('Schema migration: Creating "port_forwardings" table for port forwarding rules');
+      db.exec(`
+        CREATE TABLE port_forwardings (
+          id TEXT PRIMARY KEY,
+          router_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          protocol TEXT DEFAULT 'tcp',
+          external_port INTEGER NOT NULL,
+          internal_ip TEXT NOT NULL,
+          internal_port INTEGER NOT NULL,
+          description TEXT,
+          enabled INTEGER DEFAULT 1,
+          uci_name TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (router_id) REFERENCES router_config(id) ON DELETE CASCADE
+        );
+      `);
+      logger.info('Schema migration: port_forwardings table created successfully');
+    }
+
     const serversColumnsForApiKey = db.prepare("PRAGMA table_info(servers)").all();
     if (!serversColumnsForApiKey.some((col) => col.name === "api_key")) {
       logger.info('Schema migration: Adding "api_key" column to "servers" table');

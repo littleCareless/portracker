@@ -231,6 +231,30 @@
       "advanced": "Advanced",
       "disableCache": "Disable Cache",
       "forceFreshDataSlower": "Force fresh data (slower)"
+    },
+    "router": {
+      "title": "Router Settings",
+      "routers": "Routers",
+      "forwardings": "Port Forwarding",
+      "noRouters": "No routers configured",
+      "addRouter": "Add Router",
+      "newRouter": "New Router",
+      "name": "Name",
+      "routerUrl": "Router URL",
+      "username": "Username",
+      "password": "Password",
+      "testConnection": "Test Connection",
+      "selectRouterFirst": "Select a router first",
+      "noForwardings": "No port forwarding rules",
+      "addForwarding": "Add Port Forward",
+      "newForwarding": "New Port Forwarding",
+      "ruleName": "Rule Name",
+      "protocol": "Protocol",
+      "externalPort": "External Port",
+      "internalPort": "Internal Port",
+      "internalIp": "Internal IP",
+      "description": "Description",
+      "syncToRouter": "Sync to Router"
     }
   },
   "batch": {

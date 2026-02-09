@@ -18,6 +18,7 @@ const { requireAuth, requireAuthOrApiKey, checkAuthEnabled, isAuthEnabled } = re
 const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 const autoxposeRoutes = require('./routes/autoxpose');
+const routerRoutes = require('./routes/router');
 const recoveryManager = require('./lib/recovery-manager');
 
 const logger = new Logger("Server", { debug: process.env.DEBUG === 'true' });
@@ -608,6 +609,7 @@ app.use(checkAuthEnabled);
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/autoxpose', autoxposeRoutes);
+app.use('/api/router', routerRoutes);
 
 const PORT = process.env.PORT || 3000;
 

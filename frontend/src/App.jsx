@@ -25,6 +25,7 @@ import { BatchHideModal } from "./components/server/BatchHideModal";
 import { BatchNotesModal } from "./components/server/BatchNotesModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { ApiKeyModal } from "./components/settings/ApiKeyModal";
+import { RouterSettingsModal } from "./components/router/RouterSettingsModal";
 import { LoginPage } from "./components/auth/LoginPage";
 import { ChangePasswordPage } from "./components/auth/ChangePasswordPage";
 import { BarChart3 } from "lucide-react";
@@ -85,6 +86,8 @@ export default function App() {
   const [batchNotesModalOpen, setBatchNotesModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [routerModalOpen, setRouterModalOpen] = useState(false);
+  const [routerStatus, setRouterStatus] = useState(null);
   const [refreshInterval, setRefreshInterval] = useState(() => {
     try {
       const saved = localStorage.getItem("refreshInterval");
@@ -2133,9 +2136,9 @@ export default function App() {
           hackerMode={hackerMode}
           onDisableHackerMode={disableHackerMode}
           autoRefreshMessages={autoRefreshMessages}
-          onOpenSettings={() => setSettingsModalOpen(true)}
-          onOpenApiKey={() => setApiKeyModalOpen(true)}
-          refreshInterval={refreshInterval}
+                  onOpenSettings={() => setSettingsModalOpen(true)}
+                  onOpenRouter={() => setRouterModalOpen(true)}
+                  onOpenApiKey={() => setApiKeyModalOpen(true)}          refreshInterval={refreshInterval}
           autoxposeStatus={autoxposeStatus}
         />
         <DashboardLayout
@@ -2304,6 +2307,13 @@ export default function App() {
       <ApiKeyModal
         isOpen={apiKeyModalOpen}
         onClose={() => setApiKeyModalOpen(false)}
+      />
+
+      <RouterSettingsModal
+        isOpen={routerModalOpen}
+        onClose={() => setRouterModalOpen(false)}
+        routerStatus={routerStatus}
+        onRouterStatusChange={setRouterStatus}
       />
 
       <BatchOperationsBar

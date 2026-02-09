@@ -231,6 +231,30 @@
       "advanced": "高级",
       "disableCache": "禁用缓存",
       "forceFreshDataSlower": "强制获取新数据（较慢）"
+    },
+    "router": {
+      "title": "路由器设置",
+      "routers": "路由器",
+      "forwardings": "端口转发",
+      "noRouters": "暂无配置的路由器",
+      "addRouter": "添加路由器",
+      "newRouter": "新路由器",
+      "name": "名称",
+      "routerUrl": "路由器地址",
+      "username": "用户名",
+      "password": "密码",
+      "testConnection": "测试连接",
+      "selectRouterFirst": "请先选择一个路由器",
+      "noForwardings": "暂无端口转发规则",
+      "addForwarding": "添加端口转发",
+      "newForwarding": "新端口转发",
+      "ruleName": "规则名称",
+      "protocol": "协议",
+      "externalPort": "外部端口",
+      "internalPort": "内部端口",
+      "internalIp": "内部 IP",
+      "description": "描述",
+      "syncToRouter": "同步到路由器"
     }
   },
   "batch": {
