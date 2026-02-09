@@ -14,20 +14,37 @@ const DEFAULT_RPC_PATH = '/cgi-bin/luci/rpc';
 const DEFAULT_TIMEOUT = 10000;
 
 /**
- * Parse router URL to get base URL and RPC path
+ * Parse router URL to get hostname and port
  */
 function parseRouterUrl(url) {
-  try {
-    const urlObj = new URL(url);
-    return {
-      baseUrl: `${urlObj.protocol}//${urlObj.host}`,
-      rpcPath: urlObj.pathname || DEFAULT_RPC_PATH,
-      hostname: urlObj.hostname,
-      port: urlObj.port || (urlObj.protocol === 'https' ? 443 : 80)
-    };
-  } catch (error) {
-    throw new Error(`Invalid router URL: ${url}`);
+  let hostname = url;
+  let port = 22; // Default SSH port
+
+  // Remove protocol if present
+  if (url.includes('://')) {
+    const withoutProtocol = url.split('://')[1];
+    // Check for port in URL
+    const portMatch = withoutProtocol.match(/:(\d+)/);
+    if (portMatch) {
+      hostname = withoutProtocol.split(':')[0];
+      port = parseInt(portMatch[1], 10);
+    } else {
+      hostname = withoutProtocol.split('/')[0];
+    }
+  } else {
+    // Check for port in URL without protocol
+    const portMatch = url.match(/:(\d+)/);
+    if (portMatch) {
+      hostname = url.split(':')[0];
+      port = parseInt(portMatch[1], 10);
+    }
   }
+
+  return {
+    hostname,
+    port,
+    baseUrl: `http://${hostname}:${port}`
+  };
 }
 
 /**
@@ -339,15 +356,17 @@ class OpenWrtClient {
     this.rpcClient = null;
     this.sshClient = null;
     
+    // Parse URL and override with explicit port if provided
     const parsed = parseRouterUrl(config.url);
-    this.baseUrl = parsed.baseUrl;
     this.hostname = parsed.hostname;
-    this.port = parsed.port;
+    this.port = config.port || parsed.port || 22;
+    this.baseUrl = parsed.baseUrl;
     this.username = config.username;
     this.password = config.password;
     this.timeout = config.timeout || DEFAULT_TIMEOUT;
     
-    logger.info(`Initialized OpenWrt client for ${this.baseUrl}`);
+    logger.info(`Initialized OpenWrt client for ${this.hostname}:${this.port}`);
+  }
   }
 
   /**
