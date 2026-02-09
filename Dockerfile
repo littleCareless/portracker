@@ -18,9 +18,6 @@ RUN npm run build
 FROM node:20-bookworm-slim AS backend-build
 WORKDIR /app/backend
 
-# Install pnpm
-RUN npm install -g pnpm
-
 # Install build dependencies for native modules
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
@@ -33,16 +30,13 @@ RUN apt-get clean && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
-COPY backend/package*.json pnpm-lock.yaml ./
+COPY backend/package*.json ./
 
 # Install dependencies
-RUN pnpm install --prod
+RUN npm ci --omit=dev
 
 # Copy backend source
 COPY backend/ ./
-
-# Explicitly rebuild native modules for the target platform
-RUN pnpm rebuild better-sqlite3 && pnpm rebuild ssh2
 
 # Final Runtime Stage
 FROM node:20-slim AS production
