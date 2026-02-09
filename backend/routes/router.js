@@ -23,7 +23,7 @@ const logger = new Logger('RouterRoutes', { debug: process.env.DEBUG === 'true' 
 router.get('/config', requireAuth, (req, res) => {
   try {
     const configs = db.prepare(`
-      SELECT id, name, router_url, auth_type, username, last_sync_at, sync_enabled, created_at, updated_at
+      SELECT id, name, router_url, port, username, last_sync_at, sync_enabled, created_at, updated_at
       FROM router_config
       ORDER BY created_at DESC
     `).all();
@@ -68,7 +68,7 @@ router.get('/config/:id', requireAuth, (req, res) => {
  */
 router.post('/config/test', requireAuth, async (req, res) => {
   try {
-    const { routerUrl, username, password } = req.body;
+    const { routerUrl, port, username, password } = req.body;
 
     if (!routerUrl) {
       return res.status(400).json({ error: getErrorMessage('routerUrlRequired') });
@@ -76,6 +76,7 @@ router.post('/config/test', requireAuth, async (req, res) => {
 
     const client = new OpenWrtClient({
       url: routerUrl.includes('://') ? routerUrl : `http://${routerUrl}`,
+      port: port || 22,
       username,
       password
     });
@@ -96,7 +97,7 @@ router.post('/config/test', requireAuth, async (req, res) => {
  */
 router.post('/config', requireAuth, (req, res) => {
   try {
-    const { name, routerUrl, authType, username, password } = req.body;
+    const { name, routerUrl, port, username, password } = req.body;
 
     if (!name || !routerUrl) {
       return res.status(400).json({ error: getErrorMessage('nameAndUrlRequired') });
@@ -117,13 +118,13 @@ router.post('/config', requireAuth, (req, res) => {
     const id = `router_${crypto.randomUUID().substring(0, 8)}`;
 
     db.prepare(`
-      INSERT INTO router_config (id, name, router_url, auth_type, username, encrypted_password, encryption_iv, encryption_tag)
+      INSERT INTO router_config (id, name, router_url, port, username, encrypted_password, encryption_iv, encryption_tag)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       name.trim(),
       routerUrl.trim(),
-      authType || 'basic',
+      port || 22,
       username?.trim() || null,
       encryptedPassword,
       encryptionIv,
@@ -136,6 +137,7 @@ router.post('/config', requireAuth, (req, res) => {
       id,
       name,
       routerUrl,
+      port,
       message: getErrorMessage('routerAddedSuccess')
     });
   } catch (error) {

@@ -46,6 +46,7 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
   const [routerForm, setRouterForm] = useState({
     name: "",
     routerUrl: "",
+    port: "",
     username: "",
     password: "",
   });
@@ -114,7 +115,7 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
     try {
       const result = await testRouterConnection(
         routerForm.routerUrl,
-        "basic",
+        routerForm.port,
         routerForm.username,
         routerForm.password
       );
@@ -136,12 +137,13 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
       await addRouterConfig({
         name: routerForm.name,
         routerUrl: routerForm.routerUrl,
+        port: routerForm.port,
         username: routerForm.username,
         password: routerForm.password,
       });
       setShowAddRouter(false);
       setTestResult(null);
-      setRouterForm({ name: "", routerUrl: "", username: "", password: "" });
+      setRouterForm({ name: "", routerUrl: "", port: "", username: "", password: "" });
       await loadRouters();
     } catch (error) {
       // Silently fail on error
@@ -381,11 +383,20 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
                   value={routerForm.routerUrl}
                   onChange={(e) => setRouterForm({ ...routerForm, routerUrl: e.target.value })}
                 />
-                <Input
-                  placeholder={t("settings.router.username")}
-                  value={routerForm.username}
-                  onChange={(e) => setRouterForm({ ...routerForm, username: e.target.value })}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder={t("settings.router.sshPort")}
+                    value={routerForm.port}
+                    onChange={(e) => setRouterForm({ ...routerForm, port: e.target.value })}
+                    className="w-24"
+                  />
+                  <Input
+                    placeholder={t("settings.router.username")}
+                    value={routerForm.username}
+                    onChange={(e) => setRouterForm({ ...routerForm, username: e.target.value })}
+                  />
+                </div>
                 <p className="text-xs text-slate-500">
                   {t("settings.router.routerUrlHint")}
                 </p>

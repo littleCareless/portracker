@@ -38,12 +38,12 @@ export async function getRouterConfig(id) {
 /**
  * Test router connection
  */
-export async function testRouterConnection(routerUrl, authType, username, password) {
+export async function testRouterConnection(routerUrl, port, username, password) {
   const res = await fetch(`${API_BASE}/config/test`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ routerUrl, authType, username, password }),
+    body: JSON.stringify({ routerUrl, port, username, password }),
   });
   return handleResponse(res);
 }

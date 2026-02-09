@@ -546,6 +546,14 @@ if (!tableExists) {
       logger.info('Schema migration: router_config table created successfully');
     }
 
+    // Migration: Add port column if not exists
+    const routerConfigColumns = db.prepare("PRAGMA table_info(router_config)").all();
+    const portColumnExists = routerConfigColumns.some(col => col.name === 'port');
+    if (!portColumnExists) {
+      logger.info('Migrating database: Adding port column to router_config table');
+      db.prepare("ALTER TABLE router_config ADD COLUMN port INTEGER DEFAULT 22").run();
+    }
+
     const portForwardingsTableExists = db
       .prepare(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='port_forwardings'"
