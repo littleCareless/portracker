@@ -113,12 +113,12 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
     setTestResult(null);
 
     try {
-      const result = await testRouterConnection(
-        routerForm.routerUrl,
-        routerForm.port,
-        routerForm.username,
-        routerForm.password
-      );
+      const result = await testRouterConnection({
+        routerUrl: routerForm.routerUrl,
+        port: routerForm.port,
+        username: routerForm.username,
+        password: routerForm.password,
+      });
 
       setTestResult(result);
     } catch (error) {

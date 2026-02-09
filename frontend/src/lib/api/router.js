@@ -38,7 +38,7 @@ export async function getRouterConfig(id) {
 /**
  * Test router connection
  */
-export async function testRouterConnection(routerUrl, port, username, password) {
+export async function testRouterConnection({ routerUrl, port, username, password }) {
   const res = await fetch(`${API_BASE}/config/test`, {
     method: "POST",
     credentials: "include",
@@ -51,12 +51,12 @@ export async function testRouterConnection(routerUrl, port, username, password) 
 /**
  * Add a new router configuration
  */
-export async function addRouterConfig(name, routerUrl, authType, username, password) {
+export async function addRouterConfig({ name, routerUrl, port, authType, username, password }) {
   const res = await fetch(`${API_BASE}/config`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, routerUrl, authType, username, password }),
+    body: JSON.stringify({ name, routerUrl, port, authType, username, password }),
   });
   return handleResponse(res);
 }
