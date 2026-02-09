@@ -35,11 +35,14 @@ RUN apt-get clean && \
 # Copy package files
 COPY backend/package*.json pnpm-lock.yaml ./
 
-# Install dependencies (allow native module compilation)
+# Install dependencies
 RUN pnpm install --prod
 
 # Copy backend source
 COPY backend/ ./
+
+# Explicitly rebuild native modules for the target platform
+RUN pnpm rebuild better-sqlite3 && pnpm rebuild ssh2
 
 # Final Runtime Stage
 FROM node:20-slim AS production
