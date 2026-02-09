@@ -35,8 +35,8 @@ RUN apt-get clean && \
 # Copy package files
 COPY backend/package*.json pnpm-lock.yaml ./
 
-# Install dependencies (ignore scripts for faster build, rebuild later if needed)
-RUN pnpm config set ignore-scripts true && pnpm install --prod && pnpm config set ignore-scripts false
+# Install dependencies (allow native module compilation)
+RUN pnpm install --prod
 
 # Copy backend source
 COPY backend/ ./
