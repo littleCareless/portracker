@@ -173,3 +173,14 @@ export async function enablePortForwarding(id) {
 export async function disablePortForwarding(id) {
   return updatePortForwarding(id, { enabled: false });
 }
+
+/**
+ * Import port forwardings from router to local database
+ */
+export async function importRouterForwardings(routerId) {
+  const res = await fetch(`${API_BASE}/config/${routerId}/import-forwardings`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return handleResponse(res);
+}

@@ -14,9 +14,7 @@ import {
   Plus,
   Trash2,
   RefreshCw,
-  ExternalLink,
   CheckCircle,
-  XCircle,
   AlertCircle,
   Shield,
   Globe,
@@ -30,6 +28,7 @@ import {
   addPortForwarding,
   deletePortForwarding,
   syncRouter,
+  importRouterForwardings,
 } from "@/lib/api/router";
 
 export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterStatusChange, servers = [] }) {
@@ -39,6 +38,7 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
   const [activeTab, setActiveTab] = useState("routers");
   const [selectedRouterId, setSelectedRouterId] = useState(null);
   const [forwardings, setForwardings] = useState([]);
+  const [routerForwardings, setRouterForwardings] = useState([]);
   const [forwardingsLoading, setForwardingsLoading] = useState(false);
 
   // New router form state
@@ -94,8 +94,14 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
   const loadForwardings = async (routerId) => {
     setForwardingsLoading(true);
     try {
-      const data = await getPortForwardings(routerId);
+      const data = await getPortForwardings(routerId, { fetchFromRouter: true });
       setForwardings(data.local || []);
+      setRouterForwardings(data.router || []);
+
+      // Log router forwardings for debugging
+      if (data.router && data.router.length > 0) {
+        console.log('Router forwardings:', data.router);
+      }
     } catch (error) {
       // Silently fail on error
     } finally {
@@ -173,6 +179,21 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
     try {
       const result = await syncRouter(selectedRouterId);
       alert(`Sync completed: ${result.added} added, ${result.failed} failed`);
+      await loadForwardings(selectedRouterId);
+    } catch (error) {
+      // Silently fail on error
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleImportFromRouter = async () => {
+    if (!selectedRouterId) return;
+
+    setSyncing(true);
+    try {
+      const result = await importRouterForwardings(selectedRouterId);
+      alert(`导入完成: ${result.imported} 条新增, ${result.skipped} 条已存在`);
       await loadForwardings(selectedRouterId);
     } catch (error) {
       // Silently fail on error
@@ -484,73 +505,153 @@ export function RouterSettingsModal({ isOpen, onClose, routerStatus, onRouterSta
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
               </div>
-            ) : forwardings.length === 0 ? (
-              <div className="text-center py-8 text-slate-500">
-                <ExternalLink className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                <p className="text-sm">{t("settings.router.noForwardings")}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => setShowAddForwarding(true)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t("settings.router.addForwarding")}
-                </Button>
-              </div>
             ) : (
               <>
-                <div className="flex justify-between items-center">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleSyncRouter}
-                    disabled={syncing}
-                  >
-                    {syncing ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                    )}
-                    {t("settings.router.syncToRouter")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowAddForwarding(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    {t("settings.router.addForwarding")}
-                  </Button>
-                </div>
-
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {forwardings.map((fw) => (
-                    <div
-                      key={fw.id}
-                      className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono">
-                          {fw.external_port}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{fw.name}</p>
-                          <p className="text-xs text-slate-500">
-                            {fw.protocol.toUpperCase()} → {fw.internal_ip}:{fw.internal_port}
-                          </p>
-                        </div>
-                      </div>
+                {/* Router Forwardings Section */}
+                <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                  <div className="bg-slate-50 dark:bg-slate-900/50 px-3 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium">
+                        路由器规则 ({routerForwardings.length})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {routerForwardings.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-indigo-600 dark:text-indigo-400"
+                          onClick={handleImportFromRouter}
+                          disabled={syncing}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          批量导入
+                        </Button>
+                      )}
                       <Button
+                        size="sm"
                         variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-red-500"
-                        onClick={() => handleDeleteForwarding(fw.id)}
+                        className="h-7"
+                        onClick={() => loadForwardings(selectedRouterId)}
+                        disabled={forwardingsLoading}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        刷新
                       </Button>
                     </div>
-                  ))}
+                  </div>
+                  <div className="divide-y divide-slate-200 dark:divide-slate-800 max-h-48 overflow-y-auto">
+                    {routerForwardings.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-slate-500 text-sm">
+                        路由器上没有端口转发规则
+                      </div>
+                    ) : (
+                      routerForwardings.map((fw) => (
+                        <div
+                          key={fw.id}
+                          className="px-3 py-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-mono">
+                              {fw.external_port}
+                            </div>
+                            <div>
+                              <p className="text-sm">{fw.name}</p>
+                              <p className="text-xs text-slate-500">
+                                {fw.protocol.toUpperCase()} → {fw.internal_ip}:{fw.internal_port}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {!forwardings.find(f => f.uci_name === fw.id) && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                                onClick={async () => {
+                                  try {
+                                    await addPortForwarding(selectedRouterId, {
+                                      name: fw.name,
+                                      protocol: fw.protocol,
+                                      externalPort: fw.external_port,
+                                      internalIp: fw.internal_ip,
+                                      internalPort: fw.internal_port,
+                                      description: fw.description,
+                                    });
+                                    await loadForwardings(selectedRouterId);
+                                  } catch (error) {
+                                    // Silently fail
+                                  }
+                                }}
+                              >
+                                导入
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Local Forwardings Section */}
+                <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                  <div className="bg-slate-50 dark:bg-slate-900/50 px-3 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-emerald-500" />
+                      <span className="text-sm font-medium">
+                        本地规则 ({forwardings.length})
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowAddForwarding(true)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      添加
+                    </Button>
+                  </div>
+                  <div className="divide-y divide-slate-200 dark:divide-slate-800 max-h-48 overflow-y-auto">
+                    {forwardings.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-slate-500 text-sm">
+                        暂无本地规则，点击添加或从路由器导入
+                      </div>
+                    ) : (
+                      forwardings.map((fw) => (
+                        <div
+                          key={fw.id}
+                          className="px-3 py-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`px-2 py-0.5 rounded text-xs font-mono ${
+                              fw.enabled !== false
+                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            }`}>
+                              {fw.external_port}
+                            </div>
+                            <div>
+                              <p className="text-sm">{fw.name}</p>
+                              <p className="text-xs text-slate-500">
+                                {fw.protocol.toUpperCase()} → {fw.internal_ip}:{fw.internal_port}
+                                {fw.uci_name && <span className="ml-2 text-indigo-500">已同步</span>}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-slate-400 hover:text-red-500"
+                            onClick={() => handleDeleteForwarding(fw.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </>
             )}

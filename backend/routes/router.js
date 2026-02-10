@@ -586,4 +586,71 @@ router.post('/batch', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * Import port forwardings from router to local database
+ */
+router.post('/config/:id/import-forwardings', requireAuth, async (req, res) => {
+  try {
+    const configId = req.params.id;
+
+    const config = db.prepare('SELECT * FROM router_config WHERE id = ?').get(configId);
+    if (!config) {
+      return res.status(404).json({ error: getErrorMessage('routerNotFound') });
+    }
+
+    if (!config.username || !config.encrypted_password) {
+      return res.status(400).json({ error: getErrorMessage('routerCredentialsRequired') });
+    }
+
+    // Fetch forwardings from router
+    const client = await createClientFromDbConfig(config);
+    const routerForwardings = await client.getPortForwardings();
+
+    const results = {
+      imported: 0,
+      skipped: 0,
+      errors: []
+    };
+
+    for (const fw of routerForwardings) {
+      try {
+        // Check if already exists by uci_name
+        const existing = db.prepare(
+          'SELECT * FROM port_forwardings WHERE router_id = ? AND uci_name = ?'
+        ).get(configId, fw.id);
+
+        if (existing) {
+          results.skipped++;
+          continue;
+        }
+
+        // Insert new forwarding from router
+        db.prepare(`
+          INSERT INTO port_forwardings (router_id, name, protocol, external_port, internal_ip, internal_port, description, uci_name, enabled)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          configId,
+          fw.name,
+          fw.protocol,
+          fw.external_port,
+          fw.internal_ip,
+          fw.internal_port,
+          fw.description || '',
+          fw.id,
+          fw.enabled ? 1 : 0
+        );
+
+        results.imported++;
+      } catch (err) {
+        results.errors.push({ id: fw.id, error: err.message });
+      }
+    }
+
+    res.json(results);
+  } catch (error) {
+    logger.error('Error importing forwardings from router:', error.message);
+    res.status(500).json({ error: getErrorMessage('importForwardingsFailed') });
+  }
+});
+
 module.exports = router;

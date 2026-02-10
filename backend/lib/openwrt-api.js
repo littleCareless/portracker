@@ -155,21 +155,23 @@ class SshUciClient {
       
       const lines = output.split('\n');
       for (const line of lines) {
-        const match = line.match(/firewall\.(\w+)=redirect/);
+        // Match both named rules (firewall.name=redirect) and anonymous rules (firewall.@redirect[0]=redirect)
+        const match = line.match(/firewall\.([^=]+)=redirect/);
         if (match) {
-          const name = await this.exec(`uci get firewall.${match[1]}.name 2>/dev/null`);
-          const target = await this.exec(`uci get firewall.${match[1]}.target 2>/dev/null`);
-          const src = await this.exec(`uci get firewall.${match[1]}.src 2>/dev/null`);
-          const dest = await this.exec(`uci get firewall.${match[1]}.dest 2>/dev/null`);
-          const proto = await this.exec(`uci get firewall.${match[1]}.proto 2>/dev/null`);
-          const srcPort = await this.exec(`uci get firewall.${match[1]}.src_dport 2>/dev/null`);
-          const destIp = await this.exec(`uci get firewall.${match[1]}.dest_ip 2>/dev/null`);
-          const destPort = await this.exec(`uci get firewall.${match[1]}.dest_port 2>/dev/null`);
-          const enabled = await this.exec(`uci get firewall.${match[1]}.enabled 2>/dev/null`);
+          const uciName = match[1];
+          const name = await this.exec(`uci get firewall.${uciName}.name 2>/dev/null`);
+          const target = await this.exec(`uci get firewall.${uciName}.target 2>/dev/null`);
+          const src = await this.exec(`uci get firewall.${uciName}.src 2>/dev/null`);
+          const dest = await this.exec(`uci get firewall.${uciName}.dest 2>/dev/null`);
+          const proto = await this.exec(`uci get firewall.${uciName}.proto 2>/dev/null`);
+          const srcPort = await this.exec(`uci get firewall.${uciName}.src_dport 2>/dev/null`);
+          const destIp = await this.exec(`uci get firewall.${uciName}.dest_ip 2>/dev/null`);
+          const destPort = await this.exec(`uci get firewall.${uciName}.dest_port 2>/dev/null`);
+          const enabled = await this.exec(`uci get firewall.${uciName}.enabled 2>/dev/null`);
           
           rules.push({
-            id: match[1],
-            name: name || 'Unnamed',
+            id: uciName,
+            name: name || `Redirect ${uciName.replace('@redirect[', '').replace(']', '')}`,
             target,
             src,
             dest,
