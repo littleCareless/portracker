@@ -72,22 +72,25 @@ jobs:
         
         echo "Created and pushed tag: $TAG"
     
+    - name: Generate release notes
+      if: steps.version-check.outputs.changed == 'true'
+      id: release-notes
+      run: |
+        node scripts/generate-release-notes.mjs \
+          "${{ steps.current-version.outputs.version }}" \
+          "${{ steps.previous-version.outputs.previous }}" \
+          > release-notes.md
+        echo "Generated release notes:"
+        cat release-notes.md
+
     - name: Create GitHub Release
       if: steps.version-check.outputs.changed == 'true'
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v2
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.version-check.outputs.tag }}
-        release_name: Release ${{ steps.current-version.outputs.version }}
-        body: |
-          ## What's Changed
-          
-          Automatic release for version ${{ steps.current-version.outputs.version }}
-          
-          ### Changes
-          - See commit history for detailed changes
-          
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ steps.previous-version.outputs.previous }}...${{ steps.version-check.outputs.tag }}
+        name: Release ${{ steps.current-version.outputs.version }}
+        body_path: release-notes.md
         draft: false
         prerelease: false

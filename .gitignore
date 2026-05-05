@@ -57,6 +57,11 @@ validate-*.sh
 # Local-only lint config (personal strict rules, not for production)
 .eslint.local.cjs
 
+# Backup and temp files
+*.bak
+*.tmp
+.tmp
+
 # Docker
 .dockerignore
 docker-compose-*.yml

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -71,8 +71,12 @@ export function ServiceCardList({
   };
 
   return (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800/50">
+    <div
+      className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800/50"
+      data-service-name={serviceName}
+    >
       <div
+        data-service-card-header="true"
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
       >
@@ -91,16 +95,12 @@ export function ServiceCardList({
           )}
 
           <div className="flex items-center">
-            {isExpanded ? (
-              <ChevronDown className="h-5 w-5 text-slate-400" />
-            ) : (
-              <ChevronRight className="h-5 w-5 text-slate-400" />
-            )}
+            <ChevronRight className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
           </div>
 
           {showIcons && <ServiceIcon name={serviceName} source={isDocker ? "docker" : "system"} size={24} />}
 
-          <AggregatedHealthDot ports={ports} serverId={serverId} serverUrl={serverUrl} />
+          <AggregatedHealthDot ports={ports} serverId={serverId} serverUrl={serverUrl} hostOverride={hostOverride} serviceName={serviceName} isDocker={isDocker} />
 
           <div className="flex flex-col">
             <div className="flex items-center space-x-2">
@@ -171,7 +171,7 @@ export function ServiceCardList({
       </div>
 
       {isExpanded && (
-        <div className="border-t border-slate-200 dark:border-slate-700">
+        <div className="border-t border-slate-200 dark:border-slate-700 animate-in fade-in-0 slide-in-from-top-1 duration-200">
           {(() => {
             const containerGroups = new Map();
             ports.forEach((port) => {

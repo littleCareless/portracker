@@ -699,8 +699,10 @@ class TrueNASCollector extends BaseCollector {
       for (const container of containers) {
         const containerName = this._formatContainerNames(container.Names);
         const containerId = container.ID;
-        const composeProject = container.Labels?.['com.docker.compose.project'] || null;
-        const composeService = container.Labels?.['com.docker.compose.service'] || null;
+        // For swarm task containers, use the service name as the owner so host-mode
+        // published ports are attributed and grouped consistently with ingress services.
+        const { composeProject, composeService, effectiveOwner } =
+          this._extractSwarmLabels(container.Labels, containerName);
 
         const rawPorts = await this.dockerApi.docker.getContainer(container.ID).inspect();
         const portBindings = rawPorts.NetworkSettings.Ports || {};
@@ -708,9 +710,9 @@ class TrueNASCollector extends BaseCollector {
         if (container.Ports && container.Ports.length > 0) {
           for (const [containerPort, hostBindings] of Object.entries(portBindings)) {
             if (!hostBindings) continue;
-          
+
           const [port, protocol] = containerPort.split('/');
-          
+
           for (const hostBinding of hostBindings) {
             const hostIP = this._resolveHostIP(hostBinding.HostIp || '0.0.0.0');
             const hostPort = hostBinding.HostPort;
@@ -724,14 +726,14 @@ class TrueNASCollector extends BaseCollector {
 
             ports.push({
               source: "docker",
-              owner: containerName,
+              owner: effectiveOwner,
               protocol: protocol || "tcp",
               host_ip: hostIP,
               host_port: parseInt(hostPort, 10),
               target: port,
               container_id: containerId,
               vm_id: null,
-              app_id: containerId,
+              app_id: effectiveOwner,
               compose_project: composeProject,
               compose_service: composeService,
             });
@@ -751,14 +753,14 @@ class TrueNASCollector extends BaseCollector {
           if (!isNaN(portNum) && !isPublished) {
             ports.push({
               source: "docker",
-              owner: containerName,
+              owner: effectiveOwner,
               protocol: protocol || "tcp",
               host_ip: "0.0.0.0",
               host_port: portNum,
               target: `${containerId.substring(0, 12)}:${portNum}(internal)`,
               container_id: containerId,
               vm_id: null,
-              app_id: containerId,
+              app_id: effectiveOwner,
               internal: true,
               compose_project: composeProject,
               compose_service: composeService,
@@ -1245,6 +1247,25 @@ class TrueNASCollector extends BaseCollector {
       try {
         perf.start("docker-ports-collection");
         const dockerPorts = await this._getDockerPorts();
+
+        // Merge Swarm service ports (ingress + host-mode published at service layer)
+        const swarmPorts = await this._getSwarmServicePorts();
+        const dockerPortsMap = new Map();
+        dockerPorts.forEach(p => {
+          const ip = this._resolveHostIP(p.host_ip);
+          const key = p.internal
+            ? `${p.container_id}:${p.host_port}:internal`
+            : `${ip}:${p.host_port}:${p.protocol || 'tcp'}`;
+          dockerPortsMap.set(key, p);
+        });
+        swarmPorts.forEach(p => {
+          const ip = this._resolveHostIP(p.host_ip);
+          const key = `${ip}:${p.host_port}:${p.protocol || 'tcp'}`;
+          if (!dockerPortsMap.has(key)) {
+            dockerPortsMap.set(key, p);
+            dockerPorts.push(p);
+          }
+        });
         perf.end("docker-ports-collection");
 
         const portsByContainer = new Map();
@@ -1354,7 +1375,7 @@ class TrueNASCollector extends BaseCollector {
           const normalizedIp = this._resolveHostIP(port.host_ip);
 
           if (port.internal && port.container_id) {
-            const publishedKey = `${normalizedIp}:${port.host_port}`;
+            const publishedKey = `${normalizedIp}:${port.host_port}:${port.protocol || 'tcp'}`;
             const existingPort = uniquePorts.get(publishedKey);
             if (existingPort && existingPort.container_id === port.container_id) {
               continue;
@@ -1363,7 +1384,7 @@ class TrueNASCollector extends BaseCollector {
 
           const key = port.internal
             ? `${port.container_id}:${port.host_port}:internal`
-            : `${normalizedIp}:${port.host_port}`;
+            : `${normalizedIp}:${port.host_port}:${port.protocol || 'tcp'}`;
           port.host_ip = normalizedIp;
           port.created =
             containerCreationTimeMap.get(port.container_id) || null;
@@ -1372,7 +1393,7 @@ class TrueNASCollector extends BaseCollector {
 
         for (const port of systemPorts) {
           const normalizedIp = this._resolveHostIP(port.host_ip);
-          const key = `${normalizedIp}:${port.host_port}`;
+          const key = `${normalizedIp}:${port.host_port}:${port.protocol || 'tcp'}`;
           const portPid = getPrimaryPid(port);
           port.host_ip = normalizedIp;
           if (uniquePorts.has(key)) {

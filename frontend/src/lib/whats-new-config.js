@@ -1,7 +1,9 @@
 const whatsNewConfig = {
   combineWhatsNewGroups: [
     { versions: ['1.3.1', '1.3.2', '1.3.3', '1.3.4'], mergeTitles: ['Duplicate Ports'] }
-  ]
+  ],
+  ignoreVersions: ['Unreleased'],
+  maxVersionsOnFirstOpen: 1
 };
 
 export default whatsNewConfig;

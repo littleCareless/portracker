@@ -12,9 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "./components/layout/AppHeader";
 import { ServerSection } from "./components/server/ServerSection";
-import { Sidebar } from "./components/layout/Sidebar";
+import { AppSidebarLayout } from "./components/layout/AppSidebarLayout";
 import { Label } from "@/components/ui/label";
-import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { MultipleServerSkeleton } from "./components/server/MultipleServerSkeleton";
 import { WhatsNewModal } from "./components/ui/WhatsNewModal";
 import { ServiceRenameModal } from "./components/server/ServiceRenameModal";
@@ -29,6 +28,10 @@ import { ChangePasswordPage } from "./components/auth/ChangePasswordPage";
 import { BarChart3 } from "lucide-react";
 import Logger from "./lib/logger";
 import { useWhatsNew } from "./lib/hooks/useWhatsNew";
+import { useReorderServers } from "./hooks/useReorderServers";
+import { useKeyboardShortcuts } from "./lib/hooks/useKeyboardShortcuts";
+import { useSidebarLayout } from "./lib/hooks/useSidebarLayout";
+import { useKonamiHackerMode } from "./lib/hooks/useKonamiHackerMode";
 import { saveCustomServiceName, deleteCustomServiceName, getCustomServiceNames, batchCustomServiceNames } from "./lib/api/customServiceNames";
 import { batchNotes, saveNote } from "./lib/api/notes";
 import { getAutoxposeStatus, connectAutoxpose, disconnectAutoxpose, setAutoxposeDisplayMode, setAutoxposeUrlStyle, getAutoxposeServices, getAutoxposeDomain } from "./lib/api/autoxpose";
@@ -37,36 +40,20 @@ import { generatePortKey } from "./lib/utils/portUtils";
 import { formatUptime } from "@/lib/utils";
 import { useAuth } from "./contexts/AuthContext";
 import { buildAutoRefreshMessages } from "@/lib/autoRefreshMessages";
+import { ServiceHealthProvider } from "@/hooks/useServiceHealth";
+import { OverridesProvider } from "@/hooks/useOverrides";
 
 const keyOf = (srvId, p) => generatePortKey(srvId, p);
 
 const logger = new Logger('App');
 
-const KONAMI_SEQUENCE = [
-  "ArrowUp",
-  "ArrowUp",
-  "ArrowDown",
-  "ArrowDown",
-  "ArrowLeft",
-  "ArrowRight",
-  "ArrowLeft",
-  "ArrowRight",
-  "b",
-  "a"
-];
-
-const KONAMI_HINTS = ["↑", "Course input detected…", "gg, keyboard pilot."];
-
-
 export default function App() {
   const auth = useAuth();
   const { shouldShowButton: shouldShowWhatsNewButton, handleShow: handleShowWhatsNew, getModalProps: getWhatsNewModalProps } = useWhatsNew();
-  
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hostOverride, setHostOverride] = useState(null);
-  
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [modalSrvId, setModalSrvId] = useState("");
   const [modalPort, setModalPort] = useState(null);
@@ -105,34 +92,8 @@ export default function App() {
   });
   const [batchLoading, setBatchLoading] = useState(false);
   const [renameLoading, setRenameLoading] = useState(false);
-  const [hackerMode, setHackerMode] = useState(() => {
-    try {
-      return localStorage.getItem("portracker_hacker_mode") === "true";
-    } catch {
-      return false;
-    }
-  });
-  const [konamiHint, setKonamiHint] = useState(null);
-  const konamiProgressRef = useRef(0);
-  const konamiHintStageRef = useRef(0);
-  const konamiHintTimeoutRef = useRef(null);
   const [healthToast, setHealthToast] = useState(null);
   const healthToastTimeoutRef = useRef(null);
-
-  const showKonamiHint = useCallback((stage) => {
-    const index = Math.min(stage, KONAMI_HINTS.length - 1);
-    setKonamiHint(KONAMI_HINTS[index]);
-    if (konamiHintTimeoutRef.current) {
-      clearTimeout(konamiHintTimeoutRef.current);
-    }
-    konamiHintTimeoutRef.current = setTimeout(() => setKonamiHint(null), 1200);
-  }, []);
-
-  useEffect(() => () => {
-    if (konamiHintTimeoutRef.current) {
-      clearTimeout(konamiHintTimeoutRef.current);
-    }
-  }, []);
 
   useEffect(() => () => {
     if (healthToastTimeoutRef.current) {
@@ -148,42 +109,7 @@ export default function App() {
     healthToastTimeoutRef.current = setTimeout(() => setHealthToast(null), 4000);
   }, []);
 
-  const toggleHackerMode = useCallback(() => {
-    setHackerMode(prev => {
-      const next = !prev;
-      pushHealthToast({
-        type: "info",
-        message: next
-          ? "Hacker mode activated. Use Ctrl+Shift+H to toggle."
-          : "Hacker mode disabled."
-      });
-      return next;
-    });
-    konamiHintStageRef.current = 0;
-    konamiProgressRef.current = 0;
-  }, [pushHealthToast]);
-
-  const disableHackerMode = useCallback(() => {
-    setHackerMode(prev => {
-      if (!prev) return prev;
-      pushHealthToast({
-        type: "info",
-        message: "Hacker mode disabled."
-      });
-      return false;
-    });
-    konamiHintStageRef.current = 0;
-    konamiProgressRef.current = 0;
-  }, [pushHealthToast]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("portracker_hacker_mode", hackerMode ? "true" : "false");
-    } catch { void 0; }
-    if (typeof document !== "undefined") {
-      document.body.classList.toggle("hacker-mode", hackerMode);
-    }
-  }, [hackerMode]);
+  const { hackerMode, konamiHint, disableHackerMode } = useKonamiHackerMode({ pushHealthToast });
 
   const [actionFeedback, setActionFeedback] = useState({
     copy: null,
@@ -363,14 +289,12 @@ export default function App() {
       setAutoxposePorts(null);
       return;
     }
-    
     const fetchServices = async () => {
       try {
         const [servicesData, domainData] = await Promise.all([
           getAutoxposeServices(),
           getAutoxposeDomain(),
         ]);
-        
         const services = servicesData?.services || [];
         const domain = domainData?.domain;
         
@@ -739,6 +663,17 @@ export default function App() {
     []
   );
 
+  const whatsNewModalProps = getWhatsNewModalProps();
+
+  const sidebarLayout = useSidebarLayout({
+    pushHealthToast,
+    isWhatsNewOpen: whatsNewModalProps.isOpen,
+    loading,
+    groupCount: groups.length,
+    logger,
+  });
+  const { stampRefreshed, onOpenAddServer: handleOpenAddServer } = sidebarLayout;
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -894,6 +829,7 @@ export default function App() {
       );
 
       setGroups(enrichedServers);
+      stampRefreshed(enrichedServers);
       setTimeout(() => setLoading(false), 300);
     } catch (error) {
       logger.error("Error in fetchAll:", error);
@@ -906,6 +842,7 @@ export default function App() {
         if (fallbackResponse.ok) {
           const legacyData = await fallbackResponse.json();
           setGroups(legacyData);
+          stampRefreshed(legacyData);
           setTimeout(() => setLoading(false), 300);
           return;
         }
@@ -916,7 +853,7 @@ export default function App() {
       setError(error.toString());
       setLoading(false);
     }
-  }, [transformCollectorData, includeUdp, disableCache]);
+  }, [transformCollectorData, includeUdp, disableCache, stampRefreshed]);
 
   const handleLogoClick = useCallback(() => {
     fetchAll();
@@ -1000,42 +937,17 @@ export default function App() {
   } catch { void 0; }
   }, [selectedServer, deepLinkContainer]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handleKeyDown = (event) => {
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "h") {
-        event.preventDefault();
-        toggleHackerMode();
-        return;
-      }
+  const searchInputRef = useRef(null);
 
-      if (event.key === "ArrowUp" && konamiProgressRef.current === 0) {
-        const stage = konamiHintStageRef.current;
-        if (stage < KONAMI_HINTS.length) {
-          showKonamiHint(stage);
-          konamiHintStageRef.current = stage + 1;
-        }
-      }
-
-      const normalized = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-      const expected = KONAMI_SEQUENCE[konamiProgressRef.current];
-
-      if (normalized === expected) {
-        konamiProgressRef.current += 1;
-        if (konamiProgressRef.current === KONAMI_SEQUENCE.length) {
-          konamiProgressRef.current = 0;
-          toggleHackerMode();
-          return;
-        }
-        return;
-      }
-
-      konamiProgressRef.current = normalized === KONAMI_SEQUENCE[0] ? 1 : 0;
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showKonamiHint, toggleHackerMode]);
+  useKeyboardShortcuts({
+    onFocusSearch: () => searchInputRef.current?.focus(),
+    onClearSearch: () => { setSearchTerm(""); },
+    onToggleSidebar: sidebarLayout.onCollapseToggle,
+    onSelectServerByIndex: (index) => {
+      if (groups[index]) handleSelectServer(groups[index].id);
+    },
+    onRefresh: fetchAll,
+  });
 
   const handleContainerOpen = useCallback((serverId, containerId) => {
     setDeepLinkContainer(containerId);
@@ -1615,6 +1527,7 @@ export default function App() {
       .catch(logger.error);
   }, []);
 
+  const handleReorder = useReorderServers({ servers, groups, setServers, setGroups });
   const addServer = useCallback(
     async (serverData, isUpdate = false) => {
       if (isUpdate) {
@@ -1691,7 +1604,7 @@ export default function App() {
               type: serverData.type || "peer",
               unreachable: serverData.unreachable || false,
               platform_type: serverData.platform_type || "unknown",
-              apiKey: serverData.apiKey || null,  // Always include for new servers
+              apiKey: serverData.apiKey || null,
             }),
           });
 
@@ -1958,20 +1871,17 @@ export default function App() {
         onRename={openRenameModal}
         onCopy={(p, portProtocol) => {
           let hostForCopy;
-          if (server.id === "local" &&
-              (p.host_ip === "0.0.0.0" ||
-               p.host_ip === "127.0.0.1" ||
-               p.host_ip === "[::]" ||
-               p.host_ip === "[::1]")) {
+          if (p.host_ip === "127.0.0.1" || p.host_ip === "[::1]") {
+            hostForCopy = p.host_ip === "[::1]" ? "[::1]" : "127.0.0.1";
+          }
+          else if (server.id === "local" &&
+              (p.host_ip === "0.0.0.0" || p.host_ip === "[::]")) {
             hostForCopy = hostOverride || window.location.hostname;
           }
           else if (
             server.id !== "local" &&
             server.url &&
-            (p.host_ip === "0.0.0.0" ||
-             p.host_ip === "127.0.0.1" ||
-             p.host_ip === "[::]" ||
-             p.host_ip === "[::1]")
+            (p.host_ip === "0.0.0.0" || p.host_ip === "[::]")
           ) {
             try {
               hostForCopy = new URL(server.url).hostname;
@@ -2070,6 +1980,8 @@ export default function App() {
 
   return (
     <TooltipProvider>
+      <OverridesProvider>
+      <ServiceHealthProvider>
       {konamiHint && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg border backdrop-blur-sm pointer-events-none animate-in fade-in-0 slide-in-from-top-2 duration-200 bg-white/95 dark:bg-slate-800/95 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
           <div className="flex items-center gap-2">
@@ -2132,21 +2044,21 @@ export default function App() {
           onOpenApiKey={() => setApiKeyModalOpen(true)}
           refreshInterval={refreshInterval}
           autoxposeStatus={autoxposeStatus}
+          searchInputRef={searchInputRef}
         />
-        <DashboardLayout
+        <AppSidebarLayout
           isSidebarOpen={isSidebarOpen}
           onCloseSidebar={() => setSidebarOpen(false)}
-          sidebar={
-            <Sidebar
-              servers={groups}
-              selectedId={selectedServer}
-              onSelect={handleSelectServer}
-              onAdd={addServer}
-              onDelete={deleteServer}
-              loading={loading}
-              hostOverride={hostOverride}
-            />
-          }
+          servers={groups}
+          selectedId={selectedServer}
+          onSelect={handleSelectServer}
+          addServer={addServer}
+          deleteServer={deleteServer}
+          onReorder={handleReorder}
+          loading={loading}
+          hostOverride={hostOverride}
+          sidebarLayout={sidebarLayout}
+          onOpenAddServer={handleOpenAddServer}
         >
           <main className="flex-1 overflow-auto">
             <div className="p-6">
@@ -2194,7 +2106,7 @@ export default function App() {
               )}
             </div>
           </main>
-        </DashboardLayout>
+        </AppSidebarLayout>
       </div>
 
       <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
@@ -2227,7 +2139,7 @@ export default function App() {
       </Dialog>
 
       <WhatsNewModal
-        {...getWhatsNewModalProps()}
+        {...whatsNewModalProps}
         onOpenSettings={() => setSettingsModalOpen(true)}
       />
 
@@ -2358,6 +2270,8 @@ export default function App() {
         })()}
         loading={false}
       />
+      </ServiceHealthProvider>
+      </OverridesProvider>
     </TooltipProvider>
   );
 
@@ -2393,6 +2307,4 @@ export default function App() {
     }
   }
 }
-
-
 

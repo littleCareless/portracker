@@ -13,12 +13,14 @@ const { createCollector, detectCollector } = require('./collectors');
 const net = require('net');
 const db = require('./db');
 const https = require("https");
-const os = require("os");
 const { requireAuth, requireAuthOrApiKey, checkAuthEnabled, isAuthEnabled } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 const autoxposeRoutes = require('./routes/autoxpose');
+const { registerServerRoutes } = require('./routes/servers');
 const recoveryManager = require('./lib/recovery-manager');
+const { enrichComposeLabelsOnPorts: enrichComposeLabelsOnPortsImpl } = require('./lib/docker/compose-attribution');
+const { getDockerHostIP } = require('./lib/docker-host');
 
 const logger = new Logger("Server", { debug: process.env.DEBUG === 'true' });
 const BASE_DEBUG = process.env.DEBUG === 'true';
@@ -45,7 +47,6 @@ const pingDebugStats = {
   startTime: Date.now(),
   lastSummaryTime: Date.now()
 };
-
 
 function logPingDebug(message, force = false) {
   pingDebugStats.count++;
@@ -117,87 +118,6 @@ function detectServiceType(port, owner) {
   
   return { name: 'Service', type: 'service', description: 'Application service' };
 }
-
-function getDockerHostIP() {
-  const platform = os.platform();
-  
-  if (platform === 'darwin' || platform === 'win32') {
-    return "host.docker.internal";
-  }
-  
-  if (isDockerDesktopEnvironment()) {
-    return "host.docker.internal";
-  }
-  
-  try {
-    if (fs.existsSync('/proc/net/route')) {
-      const routes = fs.readFileSync('/proc/net/route', 'utf8');
-      const lines = routes.split('\n');
-      for (const line of lines) {
-        const fields = line.split('\t');
-        if (fields[1] === '00000000' && fields[7] === '00000000') {
-          const gatewayHex = fields[2];
-          const gateway = [
-            parseInt(gatewayHex.substr(6, 2), 16),
-            parseInt(gatewayHex.substr(4, 2), 16),
-            parseInt(gatewayHex.substr(2, 2), 16),
-            parseInt(gatewayHex.substr(0, 2), 16)
-          ].join('.');
-          return gateway;
-        }
-      }
-    }
-  } catch (err) {
-    logger.warn('Failed to detect Docker host IP from /proc/net/route:', err.message);
-  }
-  
-  return "172.17.0.1";
-}
-
-
-function isDockerDesktopEnvironment() {
-  try {
-    if (process.env.DOCKER_DESKTOP === 'true') {
-      return true;
-    }
-    
-    if (fs.existsSync('/proc/version')) {
-      const version = fs.readFileSync('/proc/version', 'utf8');
-      if (version.includes('linuxkit') || version.includes('docker-desktop')) {
-        return true;
-      }
-    }
-    
-    if (fs.existsSync('/proc/net/route')) {
-      const routes = fs.readFileSync('/proc/net/route', 'utf8');
-      const gatewayLines = routes.split('\n').filter(line => {
-        const fields = line.split('\t');
-        return fields[1] === '00000000';
-      });
-      
-      for (const line of gatewayLines) {
-        const fields = line.split('\t');
-        const gatewayHex = fields[2];
-        const gateway = [
-          parseInt(gatewayHex.substr(6, 2), 16),
-          parseInt(gatewayHex.substr(4, 2), 16),
-          parseInt(gatewayHex.substr(2, 2), 16),
-          parseInt(gatewayHex.substr(0, 2), 16)
-        ].join('.');
-        
-        if (gateway.startsWith('192.168.65.') || gateway.startsWith('172.19.') || gateway.startsWith('172.20.')) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  } catch (err) {
-    logger.debug("Error checking Docker Desktop environment:", { error: err.message });
-    return false;
-  }
-}
-
 
 async function testProtocol(scheme, host_ip, port, path = "/", isDebugEnabled = false) {
   const controller = new AbortController();
@@ -365,17 +285,6 @@ async function testProtocol(scheme, host_ip, port, path = "/", isDebugEnabled = 
   }
 }
 
-
-/**
- * Determines the status and accessibility of a service based on its type and HTTP(S) response data.
- *
- * Evaluates the service type and the results of HTTP and HTTPS protocol checks to classify the service as accessible, listening, unreachable, or in error. Returns a status object with color coding, descriptive title, and protocol information when applicable.
- *
- * @param {Object} serviceInfo - Metadata about the service, including type, name, and description.
- * @param {Object} httpsResponse - Result of the HTTPS protocol check, including reachability and status code.
- * @param {Object} httpResponse - Result of the HTTP protocol check, including reachability and status code.
- * @return {Object} An object describing the service's status, color, title, description, and protocol if relevant.
- */
 function determineServiceStatus(serviceInfo, httpsResponse, httpResponse) {
   const serviceType = serviceInfo.type;
   
@@ -608,12 +517,10 @@ app.use(checkAuthEnabled);
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/autoxpose', autoxposeRoutes);
+registerServerRoutes(app, { db, logger, requireAuth, validateServerInput });
 
 const PORT = process.env.PORT || 3000;
 
-/**
- * Get all ports from the local system using the collector framework.
- */
 app.get("/api/ports", requireAuthOrApiKey, async (req, res) => {
   const debug = req.query.debug === "true";
   if (Object.prototype.hasOwnProperty.call(req.query, 'debug')) logger.setDebugEnabled(debug);
@@ -678,9 +585,6 @@ app.get("/api/ports", requireAuthOrApiKey, async (req, res) => {
   }
 });
 
-/**
- * New peer-based endpoint to replace remote API connectivity.
- */
 app.get("/api/all-ports", requireAuthOrApiKey, async (req, res) => {
   const debug = req.query.debug === "true" || process.env.DEBUG === 'true';
   if (Object.prototype.hasOwnProperty.call(req.query, 'debug')) logger.setDebugEnabled(debug);
@@ -688,7 +592,11 @@ app.get("/api/all-ports", requireAuthOrApiKey, async (req, res) => {
   logger.debug(`GET /api/all-ports called with debug=${debug}`);
   
   try {
-    const servers = db.prepare("SELECT * FROM servers").all();
+    const servers = db
+      .prepare(
+        "SELECT * FROM servers ORDER BY (position IS NULL) ASC, position ASC, label COLLATE NOCASE ASC"
+      )
+      .all();
 
     const results = servers.map((s) => ({
       id: s.id,
@@ -725,12 +633,18 @@ app.get("/api/all-ports", requireAuthOrApiKey, async (req, res) => {
   }
 });
 
-/**
- * Collects and returns the list of open ports on the local system using the most suitable platform-specific collector.
- * @param {Object} [options] - Optional settings for port collection.
- * @param {boolean} [options.debug] - Enables debug logging if true.
- * @return {Promise<Array>} Resolves with an array of port information objects.
- */
+app.get("/api/services", requireAuthOrApiKey, require('./routes/services').createServicesHandler({
+  getLocalPortsUsingCollectors: (...a) => getLocalPortsUsingCollectors(...a),
+  dockerApi, logger, baseDebug: BASE_DEBUG,
+}));
+
+const servicesRoutes = require('./routes/services');
+app.get("/api/overrides", requireAuthOrApiKey, servicesRoutes.createGetOverridesHandler({ logger }));
+app.put("/api/services/:serviceId/components/:componentId/role", requireAuthOrApiKey, servicesRoutes.createPutOverrideHandler({ logger }));
+app.delete("/api/services/:serviceId/components/:componentId/role", requireAuthOrApiKey, servicesRoutes.createDeleteOverrideHandler({ logger }));
+app.delete("/api/services/:serviceId/overrides", requireAuthOrApiKey, servicesRoutes.createDeleteServiceOverridesHandler({ logger }));
+app.delete("/api/overrides", requireAuthOrApiKey, servicesRoutes.createDeleteAllOverridesHandler({ logger }));
+
 async function getLocalPortsUsingCollectors(options = {}) {
   const currentDebug = options.debug || false;
 
@@ -742,13 +656,19 @@ async function getLocalPortsUsingCollectors(options = {}) {
 
     const ports = await collector.getPorts();
     logger.debug(`[getLocalPortsUsingCollectors] Collected ${ports?.length || 0} ports.`);
-    
+
+    await enrichComposeLabelsOnPorts(ports);
+
     return ports;
   } catch (error) {
     logger.error("[getLocalPortsUsingCollectors] Primary collection attempt failed:", error.message);
     logger.debug("Stack trace:", error.stack || "");
     throw error;
   }
+}
+
+async function enrichComposeLabelsOnPorts(ports) {
+  return enrichComposeLabelsOnPortsImpl(dockerApi, ports, logger);
 }
 
 function getPortRangeForSuggestion() {
@@ -889,9 +809,6 @@ async function generateUnusedPortFromPortList(portEntries, { bindCheck = false, 
   return generateUnusedPortWithSet(usedPorts, { bindCheck, method });
 }
 
-/**
- * New endpoint to scan a server with the appropriate collector
- */
 app.get("/api/servers/:id/scan", requireAuthOrApiKey, async (req, res) => {
   const serverId = req.params.id;
   const currentDebug = req.query.debug === "true" || process.env.DEBUG === 'true';
@@ -953,6 +870,8 @@ app.get("/api/servers/:id/scan", requireAuthOrApiKey, async (req, res) => {
       const collectData = await collector.collectAll();
 
       if (collectData.ports && Array.isArray(collectData.ports)) {
+        await enrichComposeLabelsOnPorts(collectData.ports);
+
         const enrichedPorts = collectData.ports.map((port) => {
           const internalFlag = port.internal ? 1 : 0;
           const noteEntry = db
@@ -1083,11 +1002,6 @@ app.get("/api/servers/:id/scan", requireAuthOrApiKey, async (req, res) => {
   }
 });
 
-/**
- * Generate an unused TCP port for the given server.
- * - For local: uses collectors to find used ports, excludes well-known/reserved, then validates with a TCP bind test.
- * - For peers: forwards the request to the peer's /api/servers/local/generate-port endpoint.
- */
 app.post("/api/servers/:id/generate-port", async (req, res) => {
   const serverId = req.params.id;
   const currentDebug = req.query.debug === "true" || process.env.DEBUG === 'true';
@@ -1305,10 +1219,6 @@ function validateNoteInput(req, res, next) {
   next();
 }
 
-/**
- * Middleware that validates the presence and format of the server ID parameter in the request.
- * Responds with a 400 error if the ID is missing or not a non-empty string.
- */
 function validateServerIdParam(req, res, next) {
   const serverId = req.params.id;
   if (
@@ -1328,10 +1238,6 @@ function validateServerIdParam(req, res, next) {
   next();
 }
 
-/**
- * Middleware that validates input for custom service name operations.
- * Validates server_id, host_ip, host_port, custom_name, and container_id fields.
- */
 function validateCustomServiceNameInput(req, res, next) {
   const { server_id, host_ip, host_port, protocol, custom_name, container_id, internal } = req.body;
 
@@ -1408,10 +1314,6 @@ function validateCustomServiceNameInput(req, res, next) {
   next();
 }
 
-/**
- * Middleware that validates input for ignore operations.
- * Validates server_id, host_ip, host_port, protocol, ignored, and container_id fields.
- */
 function validateIgnoreInput(req, res, next) {
   const { server_id, host_ip, host_port, protocol, ignored, container_id, internal } = req.body;
 
@@ -1488,10 +1390,6 @@ function validateIgnoreInput(req, res, next) {
   next();
 }
 
-/**
- * Middleware that validates input for custom service name delete operations.
- * Validates server_id, host_ip, host_port, protocol, and container_id fields.
- */
 function validateCustomServiceNameDeleteInput(req, res, next) {
   const { server_id, host_ip, host_port, protocol, container_id, internal } = req.body;
 
@@ -1557,119 +1455,6 @@ function validateCustomServiceNameDeleteInput(req, res, next) {
 
   next();
 }
-
-app.get("/api/servers", requireAuth, (req, res) => {
-  logger.debug("GET /api/servers");
-  try {
-    const stmt = db.prepare(
-      "SELECT id, label, url, parentId, type, unreachable, platform_type, (remote_api_key IS NOT NULL) as hasApiKey FROM servers"
-    );
-    const servers = stmt.all();
-    logger.debug(`Returning ${servers.length} servers`);
-    res.json(servers);
-  } catch (error) {
-    logger.error("Failed to get servers:", error.message);
-    logger.debug("Stack trace:", error.stack || "");
-    res
-      .status(500)
-      .json({ error: "Failed to retrieve servers", details: error.message });
-  }
-});
-
-app.post("/api/servers", requireAuth, validateServerInput, (req, res) => {
-  const { id, label, url, parentId, type, unreachable, platform_type, apiKey } =
-    req.body;
-
-  if (!id) {
-    return res.status(400).json({ error: "Field 'id' is required" });
-  }
-
-  if (type === "peer" && !unreachable && (!url || url.trim().length === 0)) {
-    return res
-      .status(400)
-      .json({
-        error: "Validation failed",
-        details: "Field 'url' is required for reachable peer servers",
-        field: "url",
-      });
-  }
-
-  const dbUnreachable = unreachable ? 1 : 0;
-
-  try {
-    const existing = db.prepare("SELECT id FROM servers WHERE id = ?").get(id);
-    if (existing) {
-      if (apiKey !== undefined) {
-        db.prepare(
-          "UPDATE servers SET label = ?, url = ?, parentId = ?, type = ?, unreachable = ?, platform_type = ?, remote_api_key = ? WHERE id = ?"
-        ).run(
-          label,
-          url,
-          parentId || null,
-          type,
-          dbUnreachable,
-          platform_type,
-          apiKey || null,
-          id
-        );
-      } else {
-        db.prepare(
-          "UPDATE servers SET label = ?, url = ?, parentId = ?, type = ?, unreachable = ?, platform_type = ? WHERE id = ?"
-        ).run(
-          label,
-          url,
-          parentId || null,
-          type,
-          dbUnreachable,
-          platform_type,
-          id
-        );
-      }
-      logger.info(`Server updated successfully. ID: ${id}, Label: "${label}"`);
-      res.status(200).json({ message: "Server updated successfully", id });
-    } else {
-      db.prepare(
-        "INSERT INTO servers (id, label, url, parentId, type, unreachable, platform_type, remote_api_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-      ).run(
-        id,
-        label,
-        url,
-        parentId || null,
-        type,
-        dbUnreachable,
-        platform_type,
-        apiKey || null
-      );
-      logger.info(`Server added successfully. ID: ${id}, Label: "${label}"`);
-      res.status(201).json({ message: "Server added successfully", id });
-    }
-  } catch (error) {
-    logger.error(`Database error in POST /api/servers (ID: ${id}): ${error.message}`);
-    logger.debug("Stack trace:", error.stack || "");
-    if (error.message.includes("UNIQUE constraint failed")) {
-      return res
-        .status(409)
-        .json({ error: `Server with ID '${id}' already exists.` });
-    }
-    if (
-      error.message.toLowerCase().includes("can only bind") ||
-      error.message.toLowerCase().includes("datatype mismatch")
-    ) {
-      logger.error(
-        `Possible data binding/type issue for server ID ${id}. Payload received: ${JSON.stringify(req.body)}`
-      );
-      return res
-        .status(500)
-        .json({
-          error: "Failed to save server due to data type issue.",
-          details: error.message,
-        });
-    }
-    res
-      .status(500)
-      .json({ error: "Failed to save server", details: error.message });
-  }
-});
 
 app.delete("/api/servers/:id", requireAuth, validateServerIdParam, (req, res) => {
   const serverId = req.params.id;
@@ -2043,10 +1828,6 @@ app.delete("/api/custom-service-names", requireAuth, validateCustomServiceNameDe
 
     let deletedCount = result.changes;
 
-    /**
-     * If no rows were deleted and we have a container_id, try deleting without container_id
-     * This handles legacy records that were created before container_id support
-     */
     if (deletedCount === 0 && container_id) {
       const legacyResult = db
         .prepare("DELETE FROM custom_service_names WHERE server_id = ? AND host_ip = ? AND host_port = ? AND protocol = ? AND container_id IS NULL AND internal = ?")
@@ -2449,7 +2230,7 @@ app.get("/api/ping", requireAuthOrApiKey, async (req, res) => {
       host_ip === "[::1]")
   ) {
     if (isInDocker) {
-      const dockerHostIP = getDockerHostIP();
+      const dockerHostIP = HOST_OVERRIDE || getDockerHostIP();
       pingable_host_ip = dockerHostIP;
       logPingDebug(
         `Detected Docker environment, using host IP '${dockerHostIP}' for port ${host_port}`
@@ -2717,7 +2498,11 @@ app.get("*", (req, res, _next) => {
   logger.debug(`Serving frontend for path: ${req.path}`);
   res.sendFile(indexPath, (err) => {
     if (err) {
-      logger.error(`Failed to send ${indexPath} for ${req.path}: ${err.message}`);
+      if (err.code === 'ENOENT') {
+        logger.debug(`Frontend not built yet (${indexPath} not found) for ${req.path}`);
+      } else {
+        logger.error(`Failed to send ${indexPath} for ${req.path}: ${err.message}`);
+      }
       if (!res.headersSent) {
         res.status(404).json({
           error: "Frontend entry point not found",

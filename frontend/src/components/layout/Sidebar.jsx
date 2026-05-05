@@ -1,21 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Trash2,
   Plus,
   Check,
   X,
-  Server,
-  HardDrive,
-  Clock,
-  Zap,
   BarChart3,
-  Settings,
   Loader2,
   AlertCircle,
-  Pencil,
-  Container,
-  MoreVertical,
 } from "lucide-react";
+import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -29,14 +22,11 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { formatBytes, formatUptime } from "@/lib/utils";
 import { SidebarSkeleton } from "./SidebarSkeleton";
+import { SortableServerCard } from "./SortableServerCard";
+import { SidebarSortChip } from "./SidebarSortChip";
+import { buildSidebarTree, sortByLabel, computeReorderItems } from "@/lib/sidebar-tree";
+import { useSidebarSortMode } from "@/hooks/useSidebarSortMode";
 
 const generateServerId = (label) => {
   if (!label || !label.trim()) {
@@ -55,170 +45,18 @@ const generateServerId = (label) => {
   return cleanId.substring(0, 50);
 };
 
-const ServerCard = React.memo(function ServerCard({
-  server,
-  isSelected,
-  onSelect,
-  onEdit,
-  onDelete,
-  hostOverride,
-  children,
-}) {
-  const name = server.server || "Unknown Server";
-  const portCount = server.data?.length || 0;
-  const isUpdating = server.ok === null || server.loading;
-  const systemInfo = server.systemInfo || {};
-  const vms = server.vms || [];
-  const memory =
-    systemInfo.physmem || systemInfo.total_mem || systemInfo.memory;
-  const uptime = systemInfo.uptime_seconds;
-  const containerCount = systemInfo.containers_running || 0;
-  const vmCount = vms.length;
-
-  const getHostDisplay = () => {
-    if (!server.url) {
-      return hostOverride || window.location.host || "localhost";
-    }
-    
-    try {
-      const url = new URL(server.url.startsWith('http') ? server.url : `http://${server.url}`);
-      return url.hostname + (url.port && url.port !== '80' && url.port !== '443' ? `:${url.port}` : '');
-    } catch {
-      return server.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '') || "localhost";
-    }
-  };
-
-  let typeLabel = "Services";
-  let typeIcon = <Settings className="h-3 w-3 mr-1" />;
-  let typeCount = portCount;
-  if (server.platform === "docker" || containerCount > 0) {
-    typeLabel = containerCount === 1 ? "Container" : "Containers";
-    typeIcon = <Container className="h-3 w-3 mr-1" />;
-    typeCount = containerCount;
-  } else if (vmCount > 0) {
-    typeLabel = "VMs";
-    typeIcon = <Server className="h-3 w-3 mr-1" />;
-    typeCount = vmCount;
-  }
-
-  return (
-    <div
-      tabIndex={0}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect(server.id);
-      }}
-      className={`p-4 rounded-xl border-2 transition-all duration-200 group relative focus:outline-none ${
-        isSelected
-          ? "border-blue-500 bg-blue-50 dark:bg-slate-800 shadow-md hover:shadow-lg hover:border-blue-600"
-          : "border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm"
-      } ${isUpdating ? "opacity-75 cursor-not-allowed" : "cursor-pointer"}`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-slate-800 dark:text-slate-200 truncate pr-2 group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors flex items-center">
-            {server.label || name}
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-mono">
-            {getHostDisplay()}
-          </p>
-        </div>
-
-        <div className="hidden md:flex items-center space-x-2 opacity-40 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(server.id);
-            }}
-            className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
-            aria-label="Edit Server"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-          {server.id !== "local" && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(server);
-              }}
-              className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-500"
-              aria-label="Delete Server"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        <div className="md:hidden">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                onClick={(e) => e.stopPropagation()}
-                className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
-                aria-label="More options"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              onClick={(e) => e.stopPropagation()}
-              align="end"
-            >
-              <DropdownMenuItem onClick={() => onEdit(server.id)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                <span>Edit</span>
-              </DropdownMenuItem>
-        
-              {server.id !== "local" && (
-                <DropdownMenuItem
-                  onClick={() => onDelete(server)}
-                  className="text-red-600 focus:text-red-600 dark:text-red-500 dark:focus:text-red-500"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-        
-      <div className="mt-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
-        <div className="flex items-center space-x-3">
-          <HardDrive className="h-3 w-3 mr-1" />
-          <span>{memory ? formatBytes(memory) : "N/A"}</span>
-        </div>
-        <div className="flex items-center space-x-3">
-          <Clock className="h-3 w-3 mr-1" />
-          <span>{uptime ? formatUptime(uptime, true) : "N/A"}</span>
-        </div>
-      </div>
-      <div className="mt-2 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
-        <div className="flex items-center space-x-3">
-          <Zap className="h-3 w-3 mr-1" />
-          <span>{portCount} ports</span>
-        </div>
-        <div className="flex items-center space-x-3">
-          {typeIcon}
-          <span>
-            {typeCount} {typeLabel}
-          </span>
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-});
-
 export function Sidebar({
   servers,
   selectedId,
   onSelect,
   onAdd,
   onDelete,
+  onReorder,
   loading,
   hostOverride,
+  lastRefreshedAt = {},
+  requestedMode,
+  onRequestedModeHandled,
 }) {
   const [mode, setMode] = useState("list");
   const [form, setForm] = useState({
@@ -237,6 +75,22 @@ export function Sidebar({
   const [submitting, setSubmitting] = useState(false);
   const [validationStatus, setValidationStatus] = useState(null);
   const latestValidationRef = useRef(0);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const { sortMode, setSortMode, undoState, undoToPrevious } = useSidebarSortMode();
+
+  useEffect(() => {
+    if (!requestedMode) {
+      return;
+    }
+
+    setMode(requestedMode);
+    onRequestedModeHandled?.();
+  }, [requestedMode, onRequestedModeHandled]);
 
   useEffect(() => {
     if (mode !== "add" && mode !== "list") {
@@ -484,25 +338,18 @@ export function Sidebar({
     return <SidebarSkeleton />;
   }
 
-  const serverMap = new Map(servers.map((s) => [s.id, s]));
-  const topLevelServers = [];
-  const childrenMap = new Map();
-
-  servers.forEach((server) => {
-    if (server.parentId && serverMap.has(server.parentId)) {
-      const children = childrenMap.get(server.parentId) || [];
-      children.push(server);
-      childrenMap.set(server.parentId, children);
-    } else {
-      topLevelServers.push(server);
-    }
-  });
+  const tree = buildSidebarTree(servers);
+  const { topLevelServers, childrenMap } = tree;
+  const dragEnabled = Boolean(onReorder) && sortMode === "custom";
+  const displayedTopLevel = sortByLabel(topLevelServers, sortMode);
 
   const renderServerHierarchy = (server, level = 0) => {
     const children = childrenMap.get(server.id) || [];
+    const displayedChildren = sortByLabel(children, sortMode);
     const maxIndentLevel = 3;
+    const childIds = displayedChildren.map((c) => c.id);
     return (
-      <ServerCard
+      <SortableServerCard
         key={server.id}
         server={server}
         isSelected={selectedId === server.id}
@@ -510,15 +357,27 @@ export function Sidebar({
         onEdit={setMode}
         onDelete={setServerToDelete}
         hostOverride={hostOverride}
+        lastRefreshedTs={lastRefreshedAt[server.id]}
+        draggable={dragEnabled}
       >
-        {children.length > 0 && level < maxIndentLevel && (
+        {displayedChildren.length > 0 && level < maxIndentLevel && (
           <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50 space-y-3">
-            {children.map((child) => renderServerHierarchy(child, level + 1))}
+            <SortableContext items={childIds} strategy={verticalListSortingStrategy}>
+              {displayedChildren.map((child) => renderServerHierarchy(child, level + 1))}
+            </SortableContext>
           </div>
         )}
-      </ServerCard>
+      </SortableServerCard>
     );
   };
+
+  const handleDragEnd = (event) => {
+    if (!onReorder || !dragEnabled) return;
+    const items = computeReorderItems(event.active, event.over, tree);
+    if (items) onReorder(items);
+  };
+
+  const topLevelIds = displayedTopLevel.map((s) => s.id);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
@@ -539,8 +398,25 @@ export function Sidebar({
             </h3>
           </div>
           <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-4">
-            {!loading &&
-              topLevelServers.map((server) => renderServerHierarchy(server))}
+            {!loading && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={topLevelIds} strategy={verticalListSortingStrategy}>
+                  {displayedTopLevel.map((server) => renderServerHierarchy(server))}
+                </SortableContext>
+              </DndContext>
+            )}
+          </div>
+          <div className="px-6 pt-2 flex-shrink-0">
+            <SidebarSortChip
+              sortMode={sortMode}
+              onChange={setSortMode}
+              undoState={undoState}
+              onUndo={undoToPrevious}
+            />
           </div>
           <div className="p-6 mt-auto flex-shrink-0">
             <button
